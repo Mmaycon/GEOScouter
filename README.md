@@ -7,3 +7,14 @@
 3. Expense sense: Plan ahead and budget for your next scientific adventure based on the datasets you've profiled.
 
 ![Schema illustration](https://github.com/stjude-biohackathon/KIDS25-Team17/blob/main/pics/schemaic1.png?raw=true)
+
+
+
+## How to run it 
+
+
+
+
+
+# Acknowledgments
+![Schema illustration](https://github.com/stjude-biohackathon/KIDS25-Team17/blob/main/pics/team.png?raw=true)
