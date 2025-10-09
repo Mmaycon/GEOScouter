@@ -11,7 +11,10 @@
 
 
 ## How to run it 
-
+create a folder and put in there the file gds_result.txt in it
+streamlit run path/to/streamlit_app.py
+in the app, pass the folder path that you put gds_result.txt
+*make sure you've installed all packages from biohack25_clean.yml
 
 
 
