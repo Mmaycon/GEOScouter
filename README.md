@@ -18,3 +18,12 @@
 
 # Acknowledgments
 ![Schema illustration](https://github.com/stjude-biohackathon/KIDS25-Team17/blob/main/pics/team.png?raw=true)
+
+Maycon - https://github.com/Mmaycon
+Felipe - https://github.com/FelipePCarcanholo
+Maggie - https://github.com/margaretAlexander
+Jewel - https://github.com/wilsonjewel27
+Luke - https://github.com/lukezhang-811
+Frank - frank.wilbanks@stjude.org
+Yutian - https://github.com/Margery0011
+Arup - https://github.com/arupgsh
