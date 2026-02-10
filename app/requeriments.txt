@@ -1,0 +1,79 @@
+# Core numeric / scientific
+numpy
+scipy
+pandas
+numba
+scikit-learn
+statsmodels
+h5py
+anndata
+scanpy
+umap-learn
+
+# Plotting / visualization
+matplotlib
+seaborn
+plotly
+pillow
+xlsxwriter
+
+# Networking / web
+requests
+urllib3
+charset-normalizer
+idna
+pysocks
+
+# Selenium
+selenium
+
+# Parsing / HTML / XML
+beautifulsoup4
+lxml
+pyyaml
+
+# Graph / clustering
+networkx
+python-igraph
+leidenalg
+
+# GEO / bioinformatics
+GEOparse
+
+# Streamlit & dashboards
+streamlit
+altair
+pydeck
+dash
+dash-bootstrap-components
+flask
+
+# Metadata / utils
+adjusttext
+texttable
+natsort
+joblib
+tqdm
+typing-extensions
+psutil
+jinja2
+traitlets
+
+# NLP (only if you actually use it)
+spacy
+spacy-streamlit
+
+# Dev / notebooks (optional)
+jupyterlab
+ipykernel
+ipython
+notebook
+
+# Misc
+gitpython
+rich
+tenacity
+typer
+wrapt
+openai
+pyarrow
