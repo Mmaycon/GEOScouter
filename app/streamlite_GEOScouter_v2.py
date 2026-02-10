@@ -39,6 +39,8 @@ import logging
 import plotly.express as px
 import plotly.graph_objects as go 
 import textwrap
+from pathlib import Path
+import tempfile
 
 logging.basicConfig(level=logging.INFO)
 
@@ -547,10 +549,21 @@ st.session_state.setdefault('metadata_search_results', None)
 
 # --- Main Pipeline Execution ---
 st.header("1. Run Data Scraping")
-dir_base = st.text_input("Enter the path to the folder containing 'gds_result.txt':")
+uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
+# Working directory (Cloud-safe): /tmp/geoscouter
+WORK_DIR = Path(tempfile.gettempdir()) / "geoscouter"
+WORK_DIR.mkdir(parents=True, exist_ok=True)
+
+dir_base = str(WORK_DIR)  # keep the rest of your pipeline code unchanged
 
 if st.button("Run Pipeline", type="primary"):
-    if dir_base and os.path.isdir(dir_base):
+    if uploaded_gds is None:
+        st.error("Please upload gds_result.txt first.")
+    else:
+        # Save uploaded file into WORK_DIR as gds_result.txt (so run_geo_pipeline can find it)
+        gds_path = Path(dir_base) / "gds_result.txt"
+        gds_path.write_bytes(uploaded_gds.getvalue())
+
         cache_file_path = os.path.join(dir_base, "geo_webscrap.csv")
         if os.path.exists(cache_file_path):
             st.info(f"Loading data from existing file: {cache_file_path}")
@@ -562,9 +575,7 @@ if st.button("Run Pipeline", type="primary"):
             if df_result is not None:
                 st.session_state.df_combined = df_result
                 st.session_state.df_combined.to_csv(cache_file_path, index=False)
-                st.success(f"Pipeline finished! Results are ready and saved to {cache_file_path} for future runs.")
-    else:
-        st.error("Please provide a valid directory path.")
+                st.success(f"Pipeline finished! Results saved to {cache_file_path}")
 
 # --- Unfiltered Visualization Section ---
 if st.session_state.df_combined is not None:
