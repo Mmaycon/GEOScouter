@@ -5,6 +5,23 @@
 # input: only the path to where you got your gds_result.txt
 
 # env: 'merged env ...'
+
+# Top of your main app file (before other imports)
+try:
+    from bs4 import BeautifulSoup
+except Exception as e:
+    import streamlit as st
+    st.set_page_config(layout="wide")
+    st.title("GEOScouter - Dependency error")
+    st.error(
+        "Missing Python package: beautifulsoup4 (bs4). "
+        "Streamlit cannot import `bs4`. \n\n"
+        "Fix: add `beautifulsoup4` to your requirements.txt at the repo root, commit, push, then redeploy.\n\n"
+        f"Original import error: {e}"
+    )
+    # Stop further execution so logs are clear
+    raise
+
 import streamlit as st
 import pandas as pd
 import os
