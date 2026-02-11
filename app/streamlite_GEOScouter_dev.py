@@ -111,21 +111,36 @@ def parse_custom_supp_files(custom_href: str, base_url: str, data: dict):
 
     supp_data = []
 
-    # Rows often contain an input checkbox; we use that as the selector
+    # Each file row usually has a checkbox in the first column.
     for row in s.select("table tr"):
-        if not row.select_one("input[type='checkbox']"):
+        cb = row.select_one("input[type='checkbox']")
+        if not cb:
             continue
 
         tds = row.find_all("td")
-        if len(tds) < 2:
+        if len(tds) < 3:
             continue
 
-        file_name = tds[0].get_text(strip=True)
-        if file_name.lower() == "(all files)":
+        # On GEO "(custom)" pages, column 0 is often checkbox, column 1 is filename
+        # Filename may be a link (<a>), so prefer link text if present.
+        filename_td = tds[1]
+        a = filename_td.find("a")
+        file_name = (a.get_text(strip=True) if a else filename_td.get_text(strip=True))
+
+        if not file_name or file_name.lower() == "(all files)":
             continue
 
-        size = tds[1].get_text(strip=True)
+        # Usually size is in the next column
+        size = tds[2].get_text(strip=True)
 
+        # "File type/resource" is often later (sometimes last column)
+        file_type_resource = ""
+        if len(tds) >= 5:
+            file_type_resource = tds[4].get_text(strip=True)
+        elif len(tds) >= 4:
+            file_type_resource = tds[3].get_text(strip=True)
+
+        # Optional: keep your old "file_type" logic, but it's less reliable than GEO's column
         parts = file_name.split(".")
         file_type = parts[1] if len(parts) > 1 else "unknown"
 
@@ -133,7 +148,7 @@ def parse_custom_supp_files(custom_href: str, base_url: str, data: dict):
         row_dict.update({
             "Supplementary file": file_name,
             "Size": size,
-            "File type/resource": file_type
+            "File type/resource": file_type_resource or file_type,
         })
         supp_data.append(row_dict)
 
@@ -684,7 +699,7 @@ if dir_base and os.path.isdir(dir_base):
                 st.error(f"Failed to read geo_webscrap.csv: {e}")
         else:
             st.info("geo_webscrap.csv not found yet.")
-            
+
 # --- Unfiltered Visualization Section ---
 if st.session_state.df_combined is not None:
     st.header("2. Visualize Datasets")
