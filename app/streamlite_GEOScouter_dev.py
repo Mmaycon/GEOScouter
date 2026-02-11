@@ -154,6 +154,25 @@ def parse_custom_supp_files(custom_href: str, base_url: str, data: dict):
 
     return supp_data
 
+def supplementary_files_from_soft(soft_text: str):
+    """
+    Extract supplementary file URLs from SOFT text and return filenames + URLs.
+    """
+    files = []
+    for line in soft_text.splitlines():
+        if line.startswith("!Series_supplementary_file"):
+            # format: !Series_supplementary_file = <url>
+            parts = line.split("=", 1)
+            if len(parts) != 2:
+                continue
+            url = parts[1].strip()
+            if not url:
+                continue
+            filename = url.rstrip("/").split("/")[-1]
+            if filename:
+                files.append((filename, url))
+    return files
+
 # Main GSE processing - driver is optional
 def process_gse(gse_id, driver=None, super_series=None):
     if not super_series:
