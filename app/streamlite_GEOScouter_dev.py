@@ -1,4 +1,27 @@
+# How to run it
+# conda activate {your env}
+# cd /where/your/code/is
+# streamlit run streamlite_GEOScouter_v2.py
+# input: upload gds_result.txt via the UI (works locally as well)
+
 # env: 'merged env ...'
+
+# Top of your main app file (before other imports) - helpful friendly error if bs4 missing
+try:
+    from bs4 import BeautifulSoup
+except Exception as e:
+    import streamlit as st
+    st.set_page_config(layout="wide")
+    st.title("GEOScouter - Dependency error")
+    st.error(
+        "Missing Python package: beautifulsoup4 (bs4). "
+        "Streamlit cannot import `bs4`. \n\n"
+        "Fix: add `beautifulsoup4` to your requirements.txt at the repo root, commit, push, then redeploy.\n\n"
+        f"Original import error: {e}"
+    )
+    # Stop further execution so logs are clear
+    raise
+
 import streamlit as st
 import pandas as pd
 import os
@@ -16,8 +39,22 @@ import logging
 import plotly.express as px
 import plotly.graph_objects as go 
 import textwrap
+from pathlib import Path
+import tempfile
+from urllib.parse import urljoin
 
 logging.basicConfig(level=logging.INFO)
+
+# --- Selenium optional import ---
+SELENIUM_AVAILABLE = True
+try:
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.chrome.options import Options
+except Exception:
+    SELENIUM_AVAILABLE = False
 
 # --- Part 1: Pipeline Functions ---
 @st.cache_data
@@ -43,16 +80,12 @@ def sanitize_sheet_name(name: str, used: set) -> str:
     used.add(safe)
     return safe
 
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.chrome.options import Options
-
-
+# Selenium driver creation (local only)
 def get_headless_driver():
-    """Configures and returns a headless Selenium driver."""
+    """Configures and returns a headless Selenium driver (LOCAL only)."""
+    if not SELENIUM_AVAILABLE:
+        raise RuntimeError("Selenium is not available in this environment.")
+
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -64,8 +97,50 @@ def get_headless_driver():
     )
     return webdriver.Chrome(options=chrome_options)
 
+# New helper: parse (custom) links without Selenium
+def parse_custom_supp_files(custom_href: str, base_url: str, data: dict):
+    """
+    Fetch the '(custom)' supplementary file listing using requests (no Selenium),
+    parse the table rows, and return a list of row dictionaries.
+    """
+    custom_url = urljoin(base_url, custom_href)
 
-def process_gse(gse_id, driver, super_series=None):
+    r = requests.get(custom_url, timeout=30)
+    r.raise_for_status()
+    s = BeautifulSoup(r.text, "html.parser")
+
+    supp_data = []
+
+    # Rows often contain an input checkbox; we use that as the selector
+    for row in s.select("table tr"):
+        if not row.select_one("input[type='checkbox']"):
+            continue
+
+        tds = row.find_all("td")
+        if len(tds) < 2:
+            continue
+
+        file_name = tds[0].get_text(strip=True)
+        if file_name.lower() == "(all files)":
+            continue
+
+        size = tds[1].get_text(strip=True)
+
+        parts = file_name.split(".")
+        file_type = parts[1] if len(parts) > 1 else "unknown"
+
+        row_dict = data.copy()
+        row_dict.update({
+            "Supplementary file": file_name,
+            "Size": size,
+            "File type/resource": file_type
+        })
+        supp_data.append(row_dict)
+
+    return supp_data
+
+# Main GSE processing - driver is optional
+def process_gse(gse_id, driver=None, super_series=None):
     if not super_series:
         super_series = gse_id
 
@@ -105,50 +180,57 @@ def process_gse(gse_id, driver, super_series=None):
 
     supp_data = []
 
-    # Case 1: Selenium for "(custom)" button
+    # Case 1: '(custom)' link - requests-first approach
     custom_link_tag = soup.find("a", string="(custom)")
     if custom_link_tag:
         try:
-            driver.get(url)
-            wait = WebDriverWait(driver, 7)
+            href = custom_link_tag.get("href")
+            if href:
+                parsed = parse_custom_supp_files(href, url, data)
+                if parsed:
+                    supp_data.extend(parsed)
+                else:
+                    logging.warning(f"(custom) page returned no parsed files for {gse_id}; will fallback.")
+            else:
+                logging.warning(f"(custom) link has no href for {gse_id}; will fallback.")
 
-            custom_link = wait.until(
-                EC.element_to_be_clickable((By.LINK_TEXT, "(custom)"))
-            )
-            custom_link.click()
+            # Local-only fallback: Selenium click if driver exists and available
+            if not supp_data and driver is not None and SELENIUM_AVAILABLE:
+                driver.get(url)
+                wait = WebDriverWait(driver, 7)
 
-            wait.until(
-                EC.presence_of_all_elements_located(
+                custom_link = wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "(custom)")))
+                custom_link.click()
+
+                wait.until(EC.presence_of_all_elements_located(
                     (By.XPATH, "//table//tr[td/input[@type='checkbox']]")
-                )
-            )
-            rows = driver.find_elements(
-                By.XPATH, "//table//tr[td/input[@type='checkbox']]"
-            )
+                ))
+                rows = driver.find_elements(By.XPATH, "//table//tr[td/input[@type='checkbox']]")
 
-            for row in rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= 2:
-                    file_name = cells[0].text.strip()
-                    if file_name.lower() == "(all files)":
-                        continue
+                for row in rows:
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    if len(cells) >= 2:
+                        file_name = cells[0].text.strip()
+                        if file_name.lower() == "(all files)":
+                            continue
 
-                    size = cells[1].text.strip()
-                    parts = file_name.split('.')
-                    file_type = parts[1] if len(parts) > 1 else "unknown"
+                        size = cells[1].text.strip()
+                        parts = file_name.split('.')
+                        file_type = parts[1] if len(parts) > 1 else "unknown"
 
-                    row_dict = data.copy()
-                    row_dict.update({
-                        "Supplementary file": file_name,
-                        "Size": size,
-                        "File type/resource": file_type,
-                    })
-                    supp_data.append(row_dict)
+                        row_dict = data.copy()
+                        row_dict.update({
+                            "Supplementary file": file_name,
+                            "Size": size,
+                            "File type/resource": file_type,
+                        })
+                        supp_data.append(row_dict)
+
         except Exception as e:
             logging.warning(f"Error processing custom link for {gse_id}: {e}")
-            supp_data.append(data)
+            # do not append data here; let the HTML fallback run below
 
-    # Case 2: standard HTML parsing
+    # Case 2: standard HTML parsing fallback
     if not supp_data:
         tables = soup.find_all('table')
         supp_table = None
@@ -238,8 +320,15 @@ def run_geo_pipeline(dir_base, proximity_window=10):
     gds_processed_path = os.path.join(dir_base, "gds_processed.csv")
     df.to_csv(gds_processed_path, index=False)
 
-    # 1. initialize driver once
-    driver = get_headless_driver()
+    # 1. Selenium optional initialization
+    driver = None
+    if SELENIUM_AVAILABLE:
+        try:
+            driver = get_headless_driver()
+        except Exception as e:
+            logging.warning(f"Selenium driver not available; continuing without Selenium. Details: {e}")
+            driver = None
+
     all_data = []
 
     progress_bar = st.progress(0)
@@ -251,13 +340,17 @@ def run_geo_pipeline(dir_base, proximity_window=10):
 
         for i, gse in enumerate(gse_list):
             status_text.text(f"Scraping {gse} ({i+1}/{total})...")
-            # pass driver to Selenium-enabled process_gse
+            # pass optional driver (None on Cloud)
             all_data.extend(process_gse(gse, driver))
             progress_bar.progress((i + 1) / total)
 
         status_text.success("Web scraping complete!")
     finally:
-        driver.quit()
+        if driver is not None:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
     df_combined = pd.DataFrame(all_data)
 
@@ -267,6 +360,23 @@ def run_geo_pipeline(dir_base, proximity_window=10):
 
     return df_combined
 
+
+def normalize_scrape_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for col in ["Platforms", "Series", "Samples"]:
+        if col not in df.columns:
+            df[col] = pd.NA
+
+    df["Platforms"] = (
+        df["Platforms"]
+        .fillna("")
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
+    df["Samples"] = pd.to_numeric(df["Samples"], errors="coerce").fillna(0).astype(int)
+    df["Series"] = df["Series"].fillna("").astype(str).str.strip().str.upper()
+    return df
 
 # --- Part 2: Visualization Functions ---
 def dataset_snapshot(df):
@@ -508,10 +618,21 @@ st.session_state.setdefault('metadata_search_results', None)
 
 # --- Main Pipeline Execution ---
 st.header("1. Run Data Scraping")
-dir_base = st.text_input("Enter the path to the folder containing 'gds_result.txt':")
+uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
+# Working directory (Cloud-safe): /tmp/geoscouter
+WORK_DIR = Path(tempfile.gettempdir()) / "geoscouter"
+WORK_DIR.mkdir(parents=True, exist_ok=True)
+
+dir_base = str(WORK_DIR)  # keep the rest of your pipeline code unchanged
 
 if st.button("Run Pipeline", type="primary"):
-    if dir_base and os.path.isdir(dir_base):
+    if uploaded_gds is None:
+        st.error("Please upload gds_result.txt first.")
+    else:
+        # Save uploaded file into WORK_DIR as gds_result.txt (so run_geo_pipeline can find it)
+        gds_path = Path(dir_base) / "gds_result.txt"
+        gds_path.write_bytes(uploaded_gds.getvalue())
+
         cache_file_path = os.path.join(dir_base, "geo_webscrap.csv")
         if os.path.exists(cache_file_path):
             st.info(f"Loading data from existing file: {cache_file_path}")
@@ -523,9 +644,7 @@ if st.button("Run Pipeline", type="primary"):
             if df_result is not None:
                 st.session_state.df_combined = df_result
                 st.session_state.df_combined.to_csv(cache_file_path, index=False)
-                st.success(f"Pipeline finished! Results are ready and saved to {cache_file_path} for future runs.")
-    else:
-        st.error("Please provide a valid directory path.")
+                st.success(f"Pipeline finished! Results saved to {cache_file_path}")
 
 # --- Debug: Inspect Raw Output Files ---
 if dir_base and os.path.isdir(dir_base):
@@ -539,21 +658,33 @@ if dir_base and os.path.isdir(dir_base):
     with col_a:
         st.subheader("gds_processed.csv")
         if os.path.exists(gds_path):
-            df_gds = pd.read_csv(gds_path)
-            st.write("Shape:", df_gds.shape)
-            st.dataframe(df_gds.head(20))
+            try:
+                df_gds = pd.read_csv(gds_path)
+                st.write("Shape:", df_gds.shape)
+                st.dataframe(df_gds.head(20))
+                with st.expander("Download gds_processed.csv"):
+                    st.write(f"Path: {gds_path}")
+                    st.download_button("Download gds_processed.csv", data=open(gds_path, "rb"), file_name="gds_processed.csv")
+            except Exception as e:
+                st.error(f"Failed to read gds_processed.csv: {e}")
         else:
             st.info("gds_processed.csv not found yet.")
 
     with col_b:
         st.subheader("geo_webscrap.csv")
         if os.path.exists(geo_path):
-            df_geo = pd.read_csv(geo_path)
-            st.write("Shape:", df_geo.shape)
-            st.dataframe(df_geo.head(20))
+            try:
+                df_geo = pd.read_csv(geo_path)
+                st.write("Shape:", df_geo.shape)
+                st.dataframe(df_geo.head(20))
+                with st.expander("Download geo_webscrap.csv"):
+                    st.write(f"Path: {geo_path}")
+                    st.download_button("Download geo_webscrap.csv", data=open(geo_path, "rb"), file_name="geo_webscrap.csv")
+            except Exception as e:
+                st.error(f"Failed to read geo_webscrap.csv: {e}")
         else:
             st.info("geo_webscrap.csv not found yet.")
-
+            
 # --- Unfiltered Visualization Section ---
 if st.session_state.df_combined is not None:
     st.header("2. Visualize Datasets")
