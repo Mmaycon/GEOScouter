@@ -640,6 +640,15 @@ WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 dir_base = str(WORK_DIR)  # keep the rest of your pipeline code unchanged
 
+# --- Manual cache cleanup button ---
+if st.button("🗑 Delete cached geo_webscrap.csv"):
+    cache_path = os.path.join(dir_base, "geo_webscrap.csv")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+        st.success("Cached geo_webscrap.csv deleted. Next run will scrape fresh data.")
+    else:
+        st.info("No cached geo_webscrap.csv found.")
+        
 if st.button("Run Pipeline", type="primary"):
     if uploaded_gds is None:
         st.error("Please upload gds_result.txt first.")
