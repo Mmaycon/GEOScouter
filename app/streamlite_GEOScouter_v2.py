@@ -4,24 +4,7 @@
 # streamlit run streamlite_GEOScouter_v2.py
 # input: only the path to where you got your gds_result.txt
 
-# env: 'merged env ...'
-
-# Top of your main app file (before other imports)
-try:
-    from bs4 import BeautifulSoup
-except Exception as e:
-    import streamlit as st
-    st.set_page_config(layout="wide")
-    st.title("GEOScouter - Dependency error")
-    st.error(
-        "Missing Python package: beautifulsoup4 (bs4). "
-        "Streamlit cannot import `bs4`. \n\n"
-        "Fix: add `beautifulsoup4` to your requirements.txt at the repo root, commit, push, then redeploy.\n\n"
-        f"Original import error: {e}"
-    )
-    # Stop further execution so logs are clear
-    raise
-
+# env: ''
 import streamlit as st
 import pandas as pd
 import os
@@ -39,8 +22,7 @@ import logging
 import plotly.express as px
 import plotly.graph_objects as go 
 import textwrap
-from pathlib import Path
-import tempfile
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -89,6 +71,24 @@ def get_headless_driver():
     )
     return webdriver.Chrome(options=chrome_options)
 
+def supplementary_files_from_soft(soft_text: str):
+    """
+    Extract supplementary file URLs from SOFT text and return filenames + URLs.
+    """
+    files = []
+    for line in soft_text.splitlines():
+        if line.startswith("!Series_supplementary_file"):
+            # format: !Series_supplementary_file = <url>
+            parts = line.split("=", 1)
+            if len(parts) != 2:
+                continue
+            url = parts[1].strip()
+            if not url:
+                continue
+            filename = url.rstrip("/").split("/")[-1]
+            if filename:
+                files.append((filename, url))
+    return files
 
 def process_gse(gse_id, driver, super_series=None):
     if not super_series:
@@ -130,9 +130,27 @@ def process_gse(gse_id, driver, super_series=None):
 
     supp_data = []
 
+    # --- NEW: Build supplementary files from SOFT (no Selenium needed) ---
+    soft_supp_files = supplementary_files_from_soft(soft_text)
+
+    if soft_supp_files:
+        for file_name, file_url in soft_supp_files:
+            parts = file_name.split(".")
+            file_type = parts[1] if len(parts) > 1 else "unknown"
+
+            row_dict = data.copy()
+            row_dict.update({
+                "Supplementary file": file_name,
+                "Size": "",  # SOFT does not provide size
+                "File type/resource": file_type,
+                "Supplementary URL": file_url,
+            })
+            supp_data.append(row_dict)
+
+
     # Case 1: Selenium for "(custom)" button
     custom_link_tag = soup.find("a", string="(custom)")
-    if custom_link_tag:
+    if custom_link_tag and not supp_data:
         try:
             driver.get(url)
             wait = WebDriverWait(driver, 7)
@@ -549,21 +567,10 @@ st.session_state.setdefault('metadata_search_results', None)
 
 # --- Main Pipeline Execution ---
 st.header("1. Run Data Scraping")
-uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
-# Working directory (Cloud-safe): /tmp/geoscouter
-WORK_DIR = Path(tempfile.gettempdir()) / "geoscouter"
-WORK_DIR.mkdir(parents=True, exist_ok=True)
-
-dir_base = str(WORK_DIR)  # keep the rest of your pipeline code unchanged
+dir_base = st.text_input("Enter the path to the folder containing 'gds_result.txt':")
 
 if st.button("Run Pipeline", type="primary"):
-    if uploaded_gds is None:
-        st.error("Please upload gds_result.txt first.")
-    else:
-        # Save uploaded file into WORK_DIR as gds_result.txt (so run_geo_pipeline can find it)
-        gds_path = Path(dir_base) / "gds_result.txt"
-        gds_path.write_bytes(uploaded_gds.getvalue())
-
+    if dir_base and os.path.isdir(dir_base):
         cache_file_path = os.path.join(dir_base, "geo_webscrap.csv")
         if os.path.exists(cache_file_path):
             st.info(f"Loading data from existing file: {cache_file_path}")
@@ -575,7 +582,9 @@ if st.button("Run Pipeline", type="primary"):
             if df_result is not None:
                 st.session_state.df_combined = df_result
                 st.session_state.df_combined.to_csv(cache_file_path, index=False)
-                st.success(f"Pipeline finished! Results saved to {cache_file_path}")
+                st.success(f"Pipeline finished! Results are ready and saved to {cache_file_path} for future runs.")
+    else:
+        st.error("Please provide a valid directory path.")
 
 # --- Unfiltered Visualization Section ---
 if st.session_state.df_combined is not None:
@@ -876,3 +885,4 @@ if st.session_state.list_of_metadata_dfs:
                     st.success(f"Filtered metadata successfully exported to: {excel_out_path}")
                 else:
                     st.error("Cannot export. Ensure data is loaded and a search has been performed.")
+
