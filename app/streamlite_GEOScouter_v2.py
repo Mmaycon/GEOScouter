@@ -41,6 +41,8 @@ import plotly.graph_objects as go
 import textwrap
 from pathlib import Path
 import tempfile
+import hashlib
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -53,6 +55,51 @@ def wrap_text_for_plotly(text, width=30):
     return "<br>".join(textwrap.wrap(text, width=width))
 
 # --- Helper function Excel sheet names ---
+
+import hashlib
+import os
+import streamlit as st
+
+def offer_download(file_path: str, label: str = None):
+    file_path = str(file_path)
+    if not os.path.exists(file_path):
+        return
+
+    # Normalize path for stable dedupe
+    abs_path = os.path.abspath(file_path)
+
+    # Track which download buttons we already rendered in THIS rerun
+    st.session_state.setdefault("_rendered_download_keys", set())
+
+    filename = os.path.basename(abs_path)
+    label = label or f"Download {filename}"
+
+    if filename.endswith(".csv"):
+        mime = "text/csv"
+    elif filename.endswith(".xlsx"):
+        mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        mime = "application/octet-stream"
+
+    # Stable key from path
+    key = "download_" + hashlib.md5(abs_path.encode("utf-8")).hexdigest()
+
+    # ✅ If we've already rendered this key in this run, skip
+    if key in st.session_state["_rendered_download_keys"]:
+        return
+
+    st.session_state["_rendered_download_keys"].add(key)
+
+    with open(abs_path, "rb") as f:
+        st.download_button(
+            label=label,
+            data=f,
+            file_name=filename,
+            mime=mime,
+            key=key,
+        )
+
+
 def sanitize_sheet_name(name: str, used: set) -> str:
     # Excel sheet name rules
     name = str(name) if pd.notna(name) and str(name).strip() else "NA"
@@ -418,15 +465,21 @@ def file_ext_network(df):
         node_x.append(x)
         node_y.append(y)
         node_text.append(node)
-        
+
         if node in node_info_df.index:
             info = node_info_df.loc[node]
+
+            # ✅ Safely handle Title (could be NaN/float)
+            title_val = info.get("Title", "N/A")
+            title_str = "N/A" if pd.isna(title_val) else str(title_val)
+
             hover_text = (
                 f"<b>{node}</b><br>"
-                f"Title: {info.get('Title', 'N/A')[:50]}...<br>"
+                f"Title: {title_str[:50]}...<br>"
                 f"Platforms: {info.get('Platforms', 'N/A')}<br>"
                 f"Samples: {info.get('Samples', 'N/A')}"
             )
+
             node_hover_text.append(hover_text)
         else:
             node_hover_text.append(f"<b>{node}</b>")
@@ -539,6 +592,9 @@ def get_gse_metadata(df_filtered, metadata_dir):
 st.set_page_config(layout="wide")
 st.title("GEOScouter - Curating datasets from GEO 🧬")
 
+# Reset per-rerun rendered download keys
+st.session_state["_rendered_download_keys"] = set()
+
 # Initialize session state
 st.session_state.setdefault('df_combined', None)
 st.session_state.setdefault('summary_df', None)
@@ -547,18 +603,89 @@ st.session_state.setdefault('gse_df_filtered', None)
 st.session_state.setdefault('list_of_metadata_dfs', None)
 st.session_state.setdefault('metadata_search_results', None)
 
+
 # --- Main Pipeline Execution ---
 st.header("1. Run Data Scraping")
 uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
+
 # Working directory (Cloud-safe): /tmp/geoscouter
 WORK_DIR = Path(tempfile.gettempdir()) / "geoscouter"
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 dir_base = str(WORK_DIR)  # keep the rest of your pipeline code unchanged
 
+# --- Manual cache cleanup button ---
+if st.button("🗑 Delete ALL cached outputs"):
+    # List every file your app writes that you consider "cache"
+    cache_files = [
+        "geo_webscrap.csv",
+        "gds_processed.csv",
+        "filtered_geo_webscrap.csv",
+        "metadata_GSE.xlsx",
+        "metadata_filtered_by_word.xlsx",
+    ]
+
+    deleted_files = []
+    missing_files = []
+    errors = []
+
+    for fname in cache_files:
+        fpath = os.path.join(dir_base, fname)
+        if os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+                deleted_files.append(fname)
+            except Exception as e:
+                errors.append(f"{fname}: {e}")
+        else:
+            missing_files.append(fname)
+
+    # Clear in-memory session state objects that hold data
+    for key in [
+        "df_combined",
+        "summary_df",
+        "gse_selection_list",
+        "gse_df_filtered",
+        "list_of_metadata_dfs",
+        "metadata_search_results",
+    ]:
+        if key in st.session_state:
+            # reset to your defaults
+            if key == "gse_selection_list":
+                st.session_state[key] = []
+            else:
+                st.session_state[key] = None
+
+    # Clear Streamlit cached functions (@st.cache_data)
+    st.cache_data.clear()
+
+    # UI feedback
+    if deleted_files:
+        st.success("Deleted: " + ", ".join(deleted_files))
+    if missing_files:
+        st.info("Not found (already gone): " + ", ".join(missing_files))
+    if errors:
+        st.error("Errors while deleting:\n" + "\n".join(errors))
+
+    st.rerun()
+
+# Save the uploaded file to the exact filename expected by run_geo_pipeline
+if uploaded_gds is not None:
+    target_path = WORK_DIR / "gds_result.txt"
+    try:
+        target_path.write_bytes(uploaded_gds.getvalue())
+        st.success(f"Uploaded file saved to: {target_path}")
+    except Exception as e:
+        st.error(f"Failed to save uploaded file: {e}")
+
+# Button to trigger pipeline
 if st.button("Run Pipeline", type="primary"):
-    if dir_base and os.path.isdir(dir_base):
+    expected_input = WORK_DIR / "gds_result.txt"
+    if not expected_input.exists():
+        st.error(f"Please upload gds_result.txt first. Expected path: {expected_input}")
+    else:
         cache_file_path = os.path.join(dir_base, "geo_webscrap.csv")
+
         if os.path.exists(cache_file_path):
             st.info(f"Loading data from existing file: {cache_file_path}")
             st.session_state.df_combined = pd.read_csv(cache_file_path)
@@ -570,8 +697,43 @@ if st.button("Run Pipeline", type="primary"):
                 st.session_state.df_combined = df_result
                 st.session_state.df_combined.to_csv(cache_file_path, index=False)
                 st.success(f"Pipeline finished! Results are ready and saved to {cache_file_path} for future runs.")
-    else:
-        st.error("Please provide a valid directory path.")
+
+        # Show immediate downloads for files produced/loaded in this run (if present)
+        immediate_files = {
+            "geo_webscrap.csv": os.path.join(dir_base, "geo_webscrap.csv"),
+            "gds_processed.csv": os.path.join(dir_base, "gds_processed.csv"),
+            "filtered_geo_webscrap.csv": os.path.join(dir_base, "filtered_geo_webscrap.csv"),
+            "metadata_GSE.xlsx": os.path.join(dir_base, "metadata_GSE.xlsx"),
+            "metadata_filtered_by_word.xlsx": os.path.join(dir_base, "metadata_filtered_by_word.xlsx"),
+        }
+
+        any_immediate = False
+        for label, path in immediate_files.items():
+            if os.path.exists(path):
+                any_immediate = True
+                offer_download(path, f"Download {label}")
+
+        if not any_immediate:
+            st.info("No output files found yet to download (they will appear here after a run).")
+
+# Global "Available downloads" section so users can grab files without re-running
+st.subheader("Available downloads")
+all_expected_files = [
+    os.path.join(dir_base, "geo_webscrap.csv"),
+    os.path.join(dir_base, "gds_processed.csv"),
+    os.path.join(dir_base, "filtered_geo_webscrap.csv"),
+    os.path.join(dir_base, "metadata_GSE.xlsx"),
+    os.path.join(dir_base, "metadata_filtered_by_word.xlsx"),
+]
+
+found_any = False
+for fp in all_expected_files:
+    if os.path.exists(fp):
+        found_any = True
+        offer_download(fp)
+
+if not found_any:
+    st.info("No exports available yet. Run the pipeline or perform an export to generate downloadable files.")
 
 # --- Unfiltered Visualization Section ---
 if st.session_state.df_combined is not None:
@@ -761,7 +923,8 @@ if st.session_state.df_combined is not None:
                 if dir_base:
                     output_csv_path = os.path.join(dir_base, "filtered_geo_webscrap.csv")
                     st.session_state.gse_df_filtered.to_csv(output_csv_path, index=False)
-                    st.success(f"Filtered data saved successfully to: {output_csv_path}")
+                    st.success("Filtered data exported!")
+                    offer_download(output_csv_path, "Download filtered_geo_webscrap.csv")
                 else:
                     st.error("Please provide the initial directory path in Step 1 to save the file.")
                     
@@ -802,7 +965,9 @@ if st.session_state.list_of_metadata_dfs:
                         gse_id = df['gse_id'].iloc[0]
                         sheet_name = sanitize_sheet_name(gse_id, used_names)
                         df.to_excel(writer, sheet_name=sheet_name, index=False)
-                st.success(f"Metadata successfully exported to: {excel_out_path}")
+
+                st.success("Metadata exported!")
+                offer_download(excel_out_path, "Download metadata_GSE.xlsx")
             else:
                 st.error("Please provide the initial directory path in Step 1 to save the Excel file.")
 
@@ -869,6 +1034,8 @@ if st.session_state.list_of_metadata_dfs:
                             gse_id = filt_df['gse_id'].iloc[0]
                             sheet_name = sanitize_sheet_name(gse_id, used_names)
                             filt_df.to_excel(writer, sheet_name=sheet_name, index=False)
-                    st.success(f"Filtered metadata successfully exported to: {excel_out_path}")
+                    st.success("Filtered metadata exported!")
+                    offer_download(excel_out_path, "Download metadata_filtered_by_word.xlsx")
+                    
                 else:
                     st.error("Cannot export. Ensure data is loaded and a search has been performed.")
