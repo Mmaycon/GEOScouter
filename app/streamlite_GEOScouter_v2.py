@@ -1,8 +1,15 @@
 # How to run it 
+# Create your own env from requirements.txt
 # conda activate {your env}
-# cd /where/your/code/is
+# cd /mnt/scratch2/Maycon/GEOScouter/
 # streamlit run streamlite_GEOScouter_v2.py
-# input: only the path to where you got your gds_result.txt
+
+# How to get the input
+# From GEODatasets (https://www.ncbi.nlm.nih.gov/gds/?term=lung+cancer
+# Do your search (TNBC AND CosMx, for instance)
+# Go down to the page, export gds_result.txt
+# gds_result.txt is the input for the app 
+
 
 # env: 'merged env ...'
 
