@@ -48,17 +48,13 @@ def build_series_summary(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate scrape rows to one row per GSE series."""
     df = df.copy()
     df["Size_MB"] = df.get("Size", pd.Series([None] * len(df))).apply(size_to_mb)
-    df["Filetype_unzipped"] = (
-        df.get("File type/resource", pd.Series([""] * len(df)))
-        .astype(str)
-        .str.replace(".gz", "", regex=False)
-    )
+    file_col = "File type/resource" if "File type/resource" in df.columns else "Supplementary file"
     summary = (
         df.groupby("Series")
         .agg(
             total_size_mb=("Size_MB", "sum"),
             num_samples=("Samples", "first"),
-            num_file_types=("Filetype_unzipped", "nunique"),
+            num_file_types=(file_col, "nunique"),
             num_files=("Supplementary file", "nunique"),
             Platforms=("Platforms", "first"),
             Title=("Title", "first"),
