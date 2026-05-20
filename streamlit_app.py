@@ -1,0 +1,386 @@
+"""
+GEOScouter – Streamlit entry point (deploy on Streamlit Community Cloud).
+
+Run locally:
+  streamlit run streamlit_app.py
+"""
+
+try:
+    from bs4 import BeautifulSoup  # noqa: F401
+except Exception as e:
+    import streamlit as st
+
+    st.set_page_config(layout="wide")
+    st.title("GEOScouter – dependency error")
+    st.error(
+        "Missing package: beautifulsoup4. Add it to requirements.txt and redeploy.\n\n"
+        f"Import error: {e}"
+    )
+    raise
+
+import os
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+from geoscouter.config import CACHE_FILES, GDS_INPUT_NAME, WORK_DIR
+from geoscouter.core.filters import (
+    apply_series_filters,
+    filter_metadata_tables,
+    metadata_filter_options,
+)
+from geoscouter.core.metadata import get_gse_metadata
+from geoscouter.core.pipeline import run_geo_pipeline
+from geoscouter.core.similarity import SIMILARITY_HELP, calculate_similarity_edges
+from geoscouter.utils.io import offer_download, sanitize_sheet_name
+from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
+from geoscouter.viz.complexity import file_per_sample_complexity
+from geoscouter.viz.network import file_similarity_network
+from geoscouter.viz.snapshot import dataset_snapshot_plots
+
+st.set_page_config(layout="wide", page_title="GEOScouter")
+st.title("GEOScouter – curating datasets from GEO")
+
+st.markdown(
+    """
+Explore GEO series from an exported `gds_result.txt`, filter by platform/samples/metadata,
+then visualize and compare supplementary files. Deployed with [Streamlit Community Cloud](https://streamlit.io/cloud).
+"""
+)
+
+# Session defaults
+for key, default in {
+    "df_combined": None,
+    "df_active": None,
+    "summary_df": None,
+    "gse_selection_list": [],
+    "gse_df_filtered": None,
+    "list_of_metadata_dfs": None,
+    "metadata_search_results": None,
+    "metadata_matched_gses": None,
+}.items():
+    st.session_state.setdefault(key, default)
+
+st.session_state["_rendered_download_keys"] = set()
+dir_base = str(WORK_DIR)
+
+# --- 1. Scraping ---
+st.header("1. Run data scraping")
+st.caption(
+    "Export `gds_result.txt` from [GEO DataSets](https://www.ncbi.nlm.nih.gov/gds/) after your search."
+)
+
+uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
+
+if st.button("Delete all cached outputs"):
+    deleted, missing, errors = [], [], []
+    for fname in CACHE_FILES:
+        fpath = os.path.join(dir_base, fname)
+        if os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+                deleted.append(fname)
+            except Exception as ex:
+                errors.append(f"{fname}: {ex}")
+        else:
+            missing.append(fname)
+    for key in [
+        "df_combined", "df_active", "summary_df", "gse_df_filtered",
+        "list_of_metadata_dfs", "metadata_search_results", "metadata_matched_gses",
+    ]:
+        st.session_state[key] = None
+    st.session_state["gse_selection_list"] = []
+    st.cache_data.clear()
+    if deleted:
+        st.success("Deleted: " + ", ".join(deleted))
+    if errors:
+        st.error("\n".join(errors))
+    st.rerun()
+
+if uploaded_gds is not None:
+    (WORK_DIR / GDS_INPUT_NAME).write_bytes(uploaded_gds.getvalue())
+    st.success(f"Saved upload to {WORK_DIR / GDS_INPUT_NAME}")
+
+if st.button("Run pipeline", type="primary"):
+    expected = WORK_DIR / GDS_INPUT_NAME
+    if not expected.exists():
+        st.error("Upload gds_result.txt first.")
+    else:
+        cache_path = os.path.join(dir_base, "geo_webscrap.csv")
+        if os.path.exists(cache_path):
+            st.info(f"Loading cached scrape: {cache_path}")
+            st.session_state.df_combined = pd.read_csv(cache_path)
+        else:
+            st.info("Running web scrape (requests-first; Selenium only if available locally).")
+            result = run_geo_pipeline(dir_base)
+            if result is not None:
+                st.session_state.df_combined = result
+        if st.session_state.df_combined is not None:
+            st.session_state.df_active = st.session_state.df_combined.copy()
+            st.success(
+                f"Ready: {st.session_state.df_combined['Series'].nunique()} series, "
+                f"{len(st.session_state.df_combined)} rows."
+            )
+
+st.subheader("Downloads")
+found = False
+for fname in CACHE_FILES:
+    fp = os.path.join(dir_base, fname)
+    if os.path.exists(fp):
+        found = True
+        offer_download(fp, f"Download {fname}")
+if not found:
+    st.info("No export files yet.")
+
+# --- 2. Upstream filters (before plots) ---
+if st.session_state.df_combined is not None:
+    st.header("2. Filter datasets")
+    st.caption("Apply filters here first so visualizations use the narrowed set.")
+
+    df_base = normalize_scrape_df(st.session_state.df_combined)
+    series_level = df_base.drop_duplicates(subset=["Series"])
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        platforms_series = df_base["Platforms"].dropna().str.split(", ")
+        all_platforms = sorted({p for sub in platforms_series for p in sub})
+        selected_platforms = st.multiselect(
+            "Platform (GPL)",
+            options=all_platforms,
+            help="GEO platform accession(s). Leave empty for all.",
+        )
+    with col_b:
+        min_samples = st.number_input("Min samples (0 = off)", min_value=0, value=0, step=10)
+        max_samples = st.number_input("Max samples (0 = off)", min_value=0, value=0, step=10)
+
+    if st.button("Apply scrape-level filters", type="primary"):
+        st.session_state.df_active = apply_series_filters(
+            st.session_state.df_combined,
+            selected_platforms=selected_platforms or None,
+            min_samples=min_samples,
+            max_samples=max_samples,
+            gse_selection=None,
+        )
+        n = st.session_state.df_active["Series"].nunique()
+        st.success(f"Active dataset: {n} series.")
+
+    if st.button("Reset to full scrape"):
+        st.session_state.df_active = st.session_state.df_combined.copy()
+        st.rerun()
+
+    active = st.session_state.df_active
+    if active is not None:
+        st.info(f"Working set: **{active['Series'].nunique()}** series.")
+
+    # Metadata fetch + upstream metadata filters
+    st.subheader("Sample metadata (optional)")
+    st.caption(
+        "Fetch GSM-level metadata to filter by assay, organism, tissue, library source, etc. "
+        "This step downloads SOFT files and can take several minutes."
+    )
+
+    meta_scope = st.radio(
+        "Metadata scope",
+        ["Active filtered series", "All scraped series"],
+        horizontal=True,
+    )
+
+    if st.button("Fetch GEO sample metadata"):
+        scope_df = active if meta_scope.startswith("Active") and active is not None else st.session_state.df_combined
+        if scope_df is None:
+            st.warning("No data to process.")
+        else:
+            metadata_dir = os.path.join(dir_base, "metadata")
+            os.makedirs(metadata_dir, exist_ok=True)
+            st.session_state.list_of_metadata_dfs = get_gse_metadata(scope_df, metadata_dir)
+
+    if st.session_state.list_of_metadata_dfs:
+        options = metadata_filter_options(st.session_state.list_of_metadata_dfs)
+        if not options:
+            st.warning("No standard metadata fields found in downloaded tables.")
+        else:
+            field_filters = {}
+            cols = st.columns(2)
+            for i, (field, values) in enumerate(sorted(options.items())):
+                with cols[i % 2]:
+                    chosen = st.multiselect(
+                        field.replace("_", " ").title(),
+                        options=values,
+                        key=f"meta_filter_{field}",
+                    )
+                    if chosen:
+                        field_filters[field] = chosen
+
+            if st.button("Apply metadata filters to working set"):
+                matched = filter_metadata_tables(
+                    st.session_state.list_of_metadata_dfs, field_filters
+                )
+                st.session_state.metadata_matched_gses = matched
+                if active is not None and matched:
+                    st.session_state.df_active = active[
+                        active["Series"].isin({g.upper() for g in matched})
+                    ].copy()
+                    st.success(
+                        f"Metadata filters matched {len(matched)} GSEs; working set updated."
+                    )
+                elif not matched:
+                    st.warning("No GSE matched the selected metadata filters.")
+
+# --- 3. Visualize (once, on active set) ---
+if st.session_state.df_active is not None and not st.session_state.df_active.empty:
+    st.header("3. Visualize datasets")
+    st.caption("Plots reflect the current working set from step 2.")
+
+    if st.button("Generate all visualizations", type="primary"):
+        summary = build_series_summary(st.session_state.df_active)
+        st.session_state.summary_df = summary
+        dataset_snapshot_plots(summary)
+        file_per_sample_complexity(summary)
+        file_similarity_network(st.session_state.df_active)
+    else:
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("Snapshot bars"):
+                summary = build_series_summary(st.session_state.df_active)
+                st.session_state.summary_df = summary
+                dataset_snapshot_plots(summary)
+        with c2:
+            if st.button("File vs samples"):
+                summary = st.session_state.summary_df
+                if summary is None:
+                    summary = build_series_summary(st.session_state.df_active)
+                    st.session_state.summary_df = summary
+                file_per_sample_complexity(summary)
+        with c3:
+            if st.button("Similarity network"):
+                file_similarity_network(st.session_state.df_active)
+
+# --- 4. GSE selection ---
+if st.session_state.df_active is not None:
+    st.header("4. Select specific GSEs")
+    with st.container(border=True):
+        st.subheader("Build a comparison list")
+        st.caption(
+            "Use this list to restrict exports and downstream steps. "
+            "Scrape-level filters in step 2 already narrow the working set; "
+            "here you add GSEs by similarity or manual ID."
+        )
+
+        with st.expander("About similarity scores", expanded=False):
+            st.markdown(SIMILARITY_HELP)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            sim_threshold = st.slider(
+                "Minimum Jaccard similarity",
+                0.0, 1.0, 0.8, 0.05,
+                help="Series with edge weight ≥ threshold are added.",
+            )
+            if st.button("Add GSEs linked at similarity threshold"):
+                _, edges, _ = calculate_similarity_edges(
+                    st.session_state.df_active
+                )
+                added = {s for e in edges if e[2] >= sim_threshold for s in e[:2]}
+                before = len(set(st.session_state.gse_selection_list))
+                st.session_state.gse_selection_list.extend(list(added))
+                after = len(set(st.session_state.gse_selection_list))
+                st.success(f"Added {after - before} GSEs ({len(added)} pairs at ≥{sim_threshold}).")
+        with col2:
+            manual_gse = st.text_input("Manual GSE ID", placeholder="GSE12345")
+            if st.button("Add manual GSE") and manual_gse:
+                st.session_state.gse_selection_list.append(manual_gse.strip().upper())
+                st.rerun()
+
+        unique_n = len(set(st.session_state.gse_selection_list))
+        st.write(f"**Comparison list:** {unique_n} unique GSEs")
+        if st.button("Clear comparison list"):
+            st.session_state.gse_selection_list = []
+            st.rerun()
+
+        if st.button("Export comparison list as filtered table", type="primary"):
+            df_out = apply_series_filters(
+                st.session_state.df_active,
+                gse_selection=st.session_state.gse_selection_list or None,
+            )
+            if st.session_state.gse_selection_list:
+                df_out = df_out[
+                    df_out["Series"].isin(
+                        {s.upper() for s in st.session_state.gse_selection_list}
+                    )
+                ]
+            st.session_state.gse_df_filtered = df_out
+            out_path = os.path.join(dir_base, "filtered_geo_webscrap.csv")
+            df_out.to_csv(out_path, index=False)
+            st.success(f"Saved {df_out['Series'].nunique()} series.")
+            offer_download(out_path)
+
+# --- 5. Metadata exploration ---
+st.header("5. Metadata analysis")
+if st.session_state.list_of_metadata_dfs:
+    gse_options = [df["gse_id"].iloc[0] for df in st.session_state.list_of_metadata_dfs]
+    selected_gse = st.selectbox("View samples for GSE", gse_options)
+    for df in st.session_state.list_of_metadata_dfs:
+        if df["gse_id"].iloc[0] == selected_gse:
+            st.dataframe(df, use_container_width=True)
+            break
+
+    if st.button("Export all metadata to Excel"):
+        excel_out = os.path.join(dir_base, "metadata_GSE.xlsx")
+        used = set()
+        with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
+            for df in st.session_state.list_of_metadata_dfs:
+                gse_id = df["gse_id"].iloc[0]
+                sheet = sanitize_sheet_name(gse_id, used)
+                df.to_excel(writer, sheet_name=sheet, index=False)
+        st.success("Metadata workbook ready.")
+        offer_download(excel_out)
+
+    keyword = st.text_input("Keyword search across metadata")
+    if st.button("Search metadata") and keyword:
+        found_gses, found_gsms, counts = set(), set(), {}
+        for df in st.session_state.list_of_metadata_dfs:
+            mask = df.apply(
+                lambda col: col.astype(str).str.contains(keyword, case=False, na=False)
+            )
+            if mask.values.any():
+                gse_id = df["gse_id"].iloc[0]
+                matching = df.loc[mask.any(axis=1), "gsm_id"].tolist()
+                found_gses.add(gse_id)
+                found_gsms.update(matching)
+                counts[gse_id] = len(matching)
+        st.session_state.metadata_search_results = {
+            "gse_vector": sorted(found_gses),
+            "gsm_vector": sorted(found_gsms),
+            "counts": counts,
+            "keyword": keyword,
+        }
+
+    if st.session_state.metadata_search_results:
+        res = st.session_state.metadata_search_results
+        st.info(
+            f"Keyword '{res['keyword']}': {len(res['gse_vector'])} GSEs, "
+            f"{len(res['gsm_vector'])} GSMs."
+        )
+        plot_df = pd.DataFrame(
+            list(res["counts"].items()), columns=["GSE", "GSM Count"]
+        ).sort_values("GSM Count", ascending=False)
+        st.plotly_chart(
+            px.bar(plot_df, x="GSE", y="GSM Count", title=f"Matches for '{res['keyword']}'"),
+            use_container_width=True,
+        )
+        if st.button("Export keyword-filtered metadata"):
+            excel_out = os.path.join(dir_base, "metadata_filtered_by_word.xlsx")
+            used = set()
+            with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
+                for df in st.session_state.list_of_metadata_dfs:
+                    gse_id = df["gse_id"].iloc[0]
+                    if gse_id in res["gse_vector"]:
+                        sub = df[df["gsm_id"].isin(res["gsm_vector"])]
+                        if not sub.empty:
+                            sheet = sanitize_sheet_name(gse_id, used)
+                            sub.to_excel(writer, sheet_name=sheet, index=False)
+            offer_download(excel_out)
+else:
+    st.info("Fetch metadata in step 2 to enable exploration here.")
