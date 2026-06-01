@@ -46,6 +46,7 @@ def file_similarity_network(df: pd.DataFrame):
         node_x.append(x)
         node_y.append(y)
         node_text.append(node)
+        degree = graph.degree(node)
         if node in node_info_df.index:
             info = node_info_df.loc[node]
             title_val = info.get("Title", "N/A")
@@ -53,10 +54,11 @@ def file_similarity_network(df: pd.DataFrame):
             node_hover_text.append(
                 f"<b>{node}</b><br>Title: {title_str[:80]}<br>"
                 f"Platforms: {info.get('Platforms', 'N/A')}<br>"
-                f"Samples: {info.get('Samples', 'N/A')}"
+                f"Samples: {info.get('Samples', 'N/A')}<br>"
+                f"Connections: {degree}"
             )
         else:
-            node_hover_text.append(f"<b>{node}</b>")
+            node_hover_text.append(f"<b>{node}</b><br>Connections: {degree}")
 
     node_trace = go.Scatter(
         x=node_x,
@@ -66,9 +68,12 @@ def file_similarity_network(df: pd.DataFrame):
         text=node_text,
         textposition="top center",
         hovertext=node_hover_text,
-        marker=dict(showscale=True, colorscale="viridis", size=15, line_width=2),
+        marker=dict(
+            size=15,
+            color="#5a6c7d",
+            line=dict(width=2, color="#ffffff"),
+        ),
     )
-    node_trace.marker.color = [len(adj[1]) for adj in graph.adjacency()]
 
     data = edge_traces + [node_trace]
     if all_weights:
@@ -82,7 +87,7 @@ def file_similarity_network(df: pd.DataFrame):
                     cmin=0,
                     cmax=1,
                     showscale=True,
-                    colorbar=dict(thickness=15, title="Edge similarity"),
+                    colorbar=dict(thickness=15, title="Similarity"),
                 ),
                 hoverinfo="none",
             )
