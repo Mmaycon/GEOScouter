@@ -33,7 +33,7 @@ from geoscouter.core.filters import (
 )
 from geoscouter.core.metadata import get_gse_metadata
 from geoscouter.core.pipeline import run_geo_pipeline
-from geoscouter.core.platforms import ensure_platform_labels, parse_gpl_ids, platform_multiselect_label
+from geoscouter.core.platforms import ensure_platform_labels, technology_filter_options
 from geoscouter.core.similarity import SIMILARITY_HELP, calculate_similarity_edges
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
@@ -119,7 +119,10 @@ if st.button("Run pipeline", type="primary"):
             if result is not None:
                 st.session_state.df_combined = result
         if st.session_state.df_combined is not None:
-            st.session_state.df_combined = ensure_platform_labels(st.session_state.df_combined)
+            st.session_state.df_combined = ensure_platform_labels(
+                st.session_state.df_combined,
+                gds_path=WORK_DIR / GDS_INPUT_NAME,
+            )
             st.session_state.df_active = st.session_state.df_combined.copy()
             st.success(
                 f"Ready: {st.session_state.df_combined['Series'].nunique()} series, "
@@ -141,26 +144,26 @@ if st.session_state.df_combined is not None:
     st.header("2. Filter datasets")
     st.caption("Apply filters here first so visualizations use the narrowed set.")
 
-    st.session_state.df_combined = ensure_platform_labels(st.session_state.df_combined)
+    st.session_state.df_combined = ensure_platform_labels(
+        st.session_state.df_combined,
+        gds_path=WORK_DIR / GDS_INPUT_NAME,
+    )
     if st.session_state.df_active is not None:
-        st.session_state.df_active = ensure_platform_labels(st.session_state.df_active)
+        st.session_state.df_active = ensure_platform_labels(
+            st.session_state.df_active,
+            gds_path=WORK_DIR / GDS_INPUT_NAME,
+        )
     df_base = normalize_scrape_df(st.session_state.df_combined)
     series_level = df_base.drop_duplicates(subset=["Series"])
 
     col_a, col_b = st.columns(2)
     with col_a:
-        all_platforms = sorted(
-            {
-                gpl
-                for platforms in df_base["Platforms"].dropna()
-                for gpl in parse_gpl_ids(platforms)
-            }
-        )
-        selected_platforms = st.multiselect(
-            "Platform",
-            options=all_platforms,
-            format_func=platform_multiselect_label,
-            help="Filter by GEO platform. Leave empty for all.",
+        all_technologies = technology_filter_options(df_base)
+        selected_technologies = st.multiselect(
+            "Technology (GEO Type)",
+            options=all_technologies,
+            help="Labels from the Type field in gds_result.txt. "
+            "When Type is \"Other\", the assay tag from the series title is used.",
         )
     with col_b:
         min_samples = st.number_input("Min samples (0 = off)", min_value=0, value=0, step=10)
@@ -169,7 +172,7 @@ if st.session_state.df_combined is not None:
     if st.button("Apply scrape-level filters", type="primary"):
         st.session_state.df_active = apply_series_filters(
             st.session_state.df_combined,
-            selected_platforms=selected_platforms or None,
+            selected_technologies=selected_technologies or None,
             min_samples=min_samples,
             max_samples=max_samples,
             gse_selection=None,

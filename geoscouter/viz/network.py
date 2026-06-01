@@ -51,12 +51,14 @@ def file_similarity_network(df: pd.DataFrame):
             info = node_info_df.loc[node]
             title_val = info.get("Title", "N/A")
             title_str = "N/A" if pd.isna(title_val) else str(title_val)
-            platform_val = info.get("Platform_labels") or info.get("Platforms", "N/A")
+            platform_val = info.get("Platform_labels") or info.get("Study_type") or info.get("Platforms", "N/A")
             if pd.isna(platform_val) or not str(platform_val).strip():
                 platform_val = info.get("Platforms", "N/A")
+            gpl_val = info.get("Platforms", "N/A")
             node_hover_text.append(
                 f"<b>{node}</b><br>Title: {title_str[:80]}<br>"
-                f"Platform: {platform_val}<br>"
+                f"Technology: {platform_val}<br>"
+                f"GPL: {gpl_val}<br>"
                 f"Samples: {info.get('Samples', 'N/A')}<br>"
                 f"Connections: {degree}"
             )

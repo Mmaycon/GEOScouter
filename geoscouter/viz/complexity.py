@@ -12,7 +12,7 @@ def file_per_sample_complexity(summary_df):
         hover_name="Series",
         hover_data=["Hover_Title", "Platform_labels", "Platforms", "num_samples", "total_size_mb"],
         title="Unique supplementary files vs samples per series",
-        labels={"Platform_Label": "Platform"},
+        labels={"Platform_Label": "Technology"},
     )
     fig.update_traces(
         hovertemplate=(
