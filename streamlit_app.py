@@ -33,7 +33,12 @@ from geoscouter.core.filters import (
 )
 from geoscouter.core.metadata import get_gse_metadata
 from geoscouter.core.pipeline import run_geo_pipeline
-from geoscouter.core.platforms import ensure_platform_labels, technology_filter_options
+from geoscouter.core.platforms import (
+    ensure_platform_labels,
+    gpl_filter_options,
+    platform_filter_label,
+    technology_filter_options,
+)
 from geoscouter.core.similarity import SIMILARITY_HELP, calculate_similarity_edges
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
@@ -156,16 +161,25 @@ if st.session_state.df_combined is not None:
     df_base = normalize_scrape_df(st.session_state.df_combined)
     series_level = df_base.drop_duplicates(subset=["Series"])
 
-    col_a, col_b = st.columns(2)
+    col_a, col_b, col_c = st.columns(3)
     with col_a:
         all_technologies = technology_filter_options(df_base)
         selected_technologies = st.multiselect(
-            "Technology (GEO Type)",
+            "Assay type (gds Type)",
             options=all_technologies,
-            help="Labels from the Type field in gds_result.txt. "
+            help="From the Type field in gds_result.txt. "
             "When Type is \"Other\", the assay tag from the series title is used.",
         )
     with col_b:
+        all_gpls = gpl_filter_options(df_base)
+        selected_platforms = st.multiselect(
+            "Platform (GPL)",
+            options=all_gpls,
+            format_func=platform_filter_label,
+            help="GEO platform accession mapped to Technology and instrument title "
+            "(same columns as the GEO platform browser).",
+        )
+    with col_c:
         min_samples = st.number_input("Min samples (0 = off)", min_value=0, value=0, step=10)
         max_samples = st.number_input("Max samples (0 = off)", min_value=0, value=0, step=10)
 
@@ -173,6 +187,7 @@ if st.session_state.df_combined is not None:
         st.session_state.df_active = apply_series_filters(
             st.session_state.df_combined,
             selected_technologies=selected_technologies or None,
+            selected_platforms=selected_platforms or None,
             min_samples=min_samples,
             max_samples=max_samples,
             gse_selection=None,

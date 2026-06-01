@@ -5,7 +5,7 @@ from geoscouter.utils.text import wrap_text_for_plotly
 
 def normalize_scrape_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    for col in ["Platforms", "Platform_labels", "Study_type", "Series", "Samples"]:
+    for col in ["Platforms", "Platform_labels", "Platform_title", "Platform_technology", "Study_type", "Series", "Samples"]:
         if col not in df.columns:
             df[col] = pd.NA
 
@@ -30,6 +30,8 @@ def normalize_scrape_df(df: pd.DataFrame) -> pd.DataFrame:
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
+    for col in ("Platform_title", "Platform_technology"):
+        df[col] = df[col].fillna("").astype(str).str.strip()
     df["Samples"] = pd.to_numeric(df["Samples"], errors="coerce").fillna(0).astype(int)
     df["Series"] = df["Series"].fillna("").astype(str).str.strip().str.upper()
     return df
@@ -79,6 +81,8 @@ def build_series_summary(df: pd.DataFrame) -> pd.DataFrame:
             num_files=("Supplementary file", "nunique"),
             Platforms=("Platforms", "first"),
             Platform_labels=("Platform_labels", "first"),
+            Platform_title=("Platform_title", "first"),
+            Platform_technology=("Platform_technology", "first"),
             Study_type=("Study_type", "first"),
             Title=("Title", "first"),
         )

@@ -21,6 +21,8 @@ def dataset_snapshot_plots(summary_df):
                 "Series": True,
                 "Platform_Label": True,
                 "Platform_labels": True,
+                "Platform_technology": True,
+                "Platform_title": True,
                 "Platforms": True,
                 "Hover_Title": True,
                 "num_samples": True,
@@ -32,9 +34,11 @@ def dataset_snapshot_plots(summary_df):
         fig.update_traces(
             hovertemplate=(
                 "<b>%{x}</b><br>"
-                "Platform: %{customdata[1]}<br>"
-                "GPL: %{customdata[2]}<br>"
-                "Title: %{customdata[3]}<br>"
+                "Assay: %{customdata[1]}<br>"
+                "GEO technology: %{customdata[2]}<br>"
+                "Instrument: %{customdata[3]}<br>"
+                "GPL: %{customdata[4]}<br>"
+                "Title: %{customdata[5]}<br>"
                 f"{ylabel}: %{{y}}<extra></extra>"
             )
         )
