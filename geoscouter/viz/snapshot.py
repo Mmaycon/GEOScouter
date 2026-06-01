@@ -35,7 +35,6 @@ def dataset_snapshot_plots(summary_df):
             hovertemplate=(
                 "<b>%{x}</b><br>"
                 "Assay: %{customdata[1]}<br>"
-                "GEO technology: %{customdata[2]}<br>"
                 "Instrument: %{customdata[3]}<br>"
                 "GPL: %{customdata[4]}<br>"
                 "Title: %{customdata[5]}<br>"
