@@ -403,7 +403,7 @@ if st.session_state.list_of_metadata_dfs:
     selected_gse = st.selectbox("View samples for GSE", gse_options)
     for df in st.session_state.list_of_metadata_dfs:
         if df["gse_id"].iloc[0] == selected_gse:
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width="stretch")
             break
 
     if st.button("Export all metadata to Excel"):
@@ -448,7 +448,7 @@ if st.session_state.list_of_metadata_dfs:
         ).sort_values("GSM Count", ascending=False)
         st.plotly_chart(
             px.bar(plot_df, x="GSE", y="GSM Count", title=f"Matches for '{res['keyword']}'"),
-            use_container_width=True,
+            width="stretch",
         )
         if st.button("Export keyword-filtered metadata"):
             excel_out = os.path.join(dir_base, "metadata_filtered_by_word.xlsx")
