@@ -27,7 +27,6 @@ def file_per_sample_complexity(summary_df):
             "<b>%{hovertext}</b><br>"
             "Title: %{customdata[0]}<br>"
             "Assay: %{customdata[1]}<br>"
-            "GEO technology: %{customdata[2]}<br>"
             "Instrument: %{customdata[3]}<br>"
             "GPL: %{customdata[4]}<br>"
             "Samples: %{customdata[5]}<br>"

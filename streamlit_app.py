@@ -176,8 +176,7 @@ if st.session_state.df_combined is not None:
             "Platform (GPL)",
             options=all_gpls,
             format_func=platform_filter_label,
-            help="GEO platform accession mapped to Technology and instrument title "
-            "(same columns as the GEO platform browser).",
+            help="GEO platform Title from the platform browser (e.g. Xenium In Situ Analyzer).",
         )
     with col_c:
         min_samples = st.number_input("Min samples (0 = off)", min_value=0, value=0, step=10)
