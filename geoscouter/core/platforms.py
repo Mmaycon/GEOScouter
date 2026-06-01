@@ -1,4 +1,4 @@
-"""Technology labels from gds_result.txt Type field (and title assay hints)."""
+"""Technology labels from gds_result.txt and GPL metadata from GEO platforms."""
 
 import json
 import logging
@@ -9,6 +9,7 @@ import pandas as pd
 
 from geoscouter.config import GDS_INPUT_NAME, WORK_DIR
 from geoscouter.core.gds_parse import parse_gds_series_metadata
+from geoscouter.utils.http import ncbi_get
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def parse_gpl_ids(platforms: str | None) -> list[str]:
 
 def build_technology_label(study_type: str, assay_hint: str = "") -> str:
     """
-    Build a display label from gds_result.txt.
+    Build a series-level assay label from gds_result.txt.
 
     Uses the Type field; when Type is only \"Other\", falls back to the assay
     tag parsed from the series title (e.g. [scRNA-Seq], (CROP-Seq, ...)).
@@ -36,6 +37,134 @@ def build_technology_label(study_type: str, assay_hint: str = "") -> str:
     if assay_hint:
         return assay_hint
     return study_type or "Unknown"
+
+
+def _parse_soft_field(soft_text: str, field: str) -> str:
+    prefix = field + " = "
+    for line in soft_text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip().strip('"')
+    return ""
+
+
+def _load_cache(path: Path = PLATFORM_CACHE_PATH) -> dict[str, dict]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Could not read platform cache %s: %s", path, exc)
+        return {}
+
+
+def _save_cache(cache: dict[str, dict], path: Path = PLATFORM_CACHE_PATH) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(cache, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def fetch_platform_info(gpl_id: str, cache_path: Path = PLATFORM_CACHE_PATH) -> dict[str, str]:
+    """
+    Fetch GEO platform Accession metadata (Title + Technology columns).
+
+    Same fields shown in the GEO platform browser:
+    https://www.ncbi.nlm.nih.gov/geo/browse/?view=platforms
+    """
+    cache = _load_cache(cache_path)
+    if gpl_id in cache:
+        return cache[gpl_id]
+
+    url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gpl_id}&format=soft"
+    title, technology = "", ""
+    try:
+        response = ncbi_get(url, timeout=30)
+        response.raise_for_status()
+        soft_text = response.text
+        title = _parse_soft_field(soft_text, "!Platform_title")
+        technology = _parse_soft_field(soft_text, "!Platform_technology")
+    except Exception as exc:
+        logger.warning("Failed to fetch platform %s: %s", gpl_id, exc)
+
+    info = {
+        "title": title or gpl_id,
+        "technology": (technology or "").replace("_", " "),
+    }
+    cache[gpl_id] = info
+    _save_cache(cache, cache_path)
+    return info
+
+
+def warm_gpl_cache(gpl_ids: set[str], cache_path: Path = PLATFORM_CACHE_PATH) -> dict[str, dict]:
+    cache = _load_cache(cache_path)
+    for gpl_id in sorted(gpl_ids):
+        if gpl_id not in cache:
+            fetch_platform_info(gpl_id, cache_path)
+    return _load_cache(cache_path)
+
+
+def gpl_display_parts(gpl_id: str, cache: dict[str, dict]) -> tuple[str, str]:
+    info = cache.get(gpl_id, {})
+    title = str(info.get("title") or gpl_id).strip()
+    technology = str(info.get("technology") or "").strip() or "Unknown technology"
+    return title, technology
+
+
+def platform_filter_label(gpl_id: str, cache: dict[str, dict] | None = None) -> str:
+    """Label for GPL multiselect: GEO Technology · Title (GPL...)."""
+    if cache is None:
+        cache = _load_cache()
+    if gpl_id not in cache:
+        cache = warm_gpl_cache({gpl_id})
+    title, technology = gpl_display_parts(gpl_id, cache)
+    if title != gpl_id:
+        return f"{technology} · {title} ({gpl_id})"
+    return f"{technology} ({gpl_id})"
+
+
+def _join_gpl_field(platforms: str | None, cache: dict[str, dict], field: str) -> str:
+    gpl_ids = parse_gpl_ids(platforms)
+    if not gpl_ids:
+        return ""
+    values = []
+    for gpl_id in gpl_ids:
+        info = cache.get(gpl_id, {})
+        val = str(info.get(field) or "").strip()
+        if field == "title" and not val:
+            val = gpl_id
+        if field == "technology":
+            val = val.replace("_", " ") or "Unknown technology"
+        values.append(val)
+    return ", ".join(values)
+
+
+def enrich_gpl_metadata(
+    df: pd.DataFrame,
+    cache_path: Path = PLATFORM_CACHE_PATH,
+) -> pd.DataFrame:
+    """Add Platform_title and Platform_technology from GEO GPL records."""
+    if df is None or df.empty or "Platforms" not in df.columns:
+        return df
+
+    all_gpls = {
+        gpl
+        for platforms in df["Platforms"].dropna().unique()
+        for gpl in parse_gpl_ids(platforms)
+    }
+    cache = warm_gpl_cache(all_gpls, cache_path)
+
+    series_df = df.drop_duplicates("Series").set_index("Series")
+    title_map = {
+        series: _join_gpl_field(series_df.at[series, "Platforms"], cache, "title")
+        for series in series_df.index
+    }
+    tech_map = {
+        series: _join_gpl_field(series_df.at[series, "Platforms"], cache, "technology")
+        for series in series_df.index
+    }
+
+    df = df.copy()
+    df["Platform_title"] = df["Series"].map(title_map).fillna("")
+    df["Platform_technology"] = df["Series"].map(tech_map).fillna("")
+    return df
 
 
 def apply_gds_technology_metadata(
@@ -70,54 +199,31 @@ def ensure_platform_labels(
     df: pd.DataFrame,
     gds_path: Path | str | None = None,
 ) -> pd.DataFrame:
-    """Ensure Platform_labels reflects gds_result.txt Type (no GPL name lookup)."""
+    """Apply gds_result Type labels and GEO GPL Title/Technology metadata."""
     if df is None or df.empty:
         return df
-    return apply_gds_technology_metadata(df, gds_path)
+    df = apply_gds_technology_metadata(df, gds_path)
+    return enrich_gpl_metadata(df)
 
 
 def technology_filter_options(df: pd.DataFrame) -> list[str]:
-    """Unique technology labels for multiselect filters."""
+    """Unique series assay labels (from gds_result Type)."""
     if df is None or df.empty:
         return []
     series = df.drop_duplicates("Series")
     labels = series.get("Platform_labels", pd.Series(dtype=str)).fillna("").astype(str).str.strip()
     labels = labels.loc[labels != ""]
-    if labels.empty and "Study_type" in series.columns:
-        labels = series["Study_type"].fillna("").astype(str).str.strip()
-        labels = labels.loc[labels != ""]
     return sorted(labels.unique())
 
 
-# Legacy helpers kept for imports elsewhere; GPL network lookup is unused by default.
-def _load_cache(path: Path = PLATFORM_CACHE_PATH) -> dict[str, dict]:
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-
-def platform_multiselect_label(
-    gpl_id: str,
-    cache: dict[str, dict] | None = None,
-    df: pd.DataFrame | None = None,
-) -> str:
-    if df is not None and "Platform_labels" in df.columns:
-        mask = df["Platforms"].fillna("").astype(str).str.contains(
-            re.escape(gpl_id), na=False, regex=True
-        )
-        labels = (
-            df.loc[mask, "Platform_labels"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .loc[lambda s: s != ""]
-            .unique()
-            .tolist()
-        )
-        if labels:
-            label = labels[0] if len(labels) == 1 else f"{labels[0]} (+{len(labels) - 1})"
-            return f"{label} · {gpl_id}"
-    return gpl_id
+def gpl_filter_options(df: pd.DataFrame) -> list[str]:
+    """Unique GPL accessions present in the working set."""
+    if df is None or df.empty:
+        return []
+    gpls = {
+        gpl
+        for platforms in df["Platforms"].dropna()
+        for gpl in parse_gpl_ids(platforms)
+    }
+    warm_gpl_cache(gpls)
+    return sorted(gpls)
