@@ -39,7 +39,11 @@ from geoscouter.core.platforms import (
     platform_filter_label,
     technology_filter_options,
 )
-from geoscouter.core.similarity import SIMILARITY_HELP, calculate_similarity_edges
+from geoscouter.core.similarity import (
+    SIMILARITY_HELP,
+    calculate_reference_edges,
+    calculate_similarity_edges,
+)
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
 from geoscouter.viz.complexity import file_per_sample_complexity
@@ -66,8 +70,29 @@ for key, default in {
     "list_of_metadata_dfs": None,
     "metadata_search_results": None,
     "metadata_matched_gses": None,
+    "reference_gse": None,
 }.items():
     st.session_state.setdefault(key, default)
+
+
+def _file_similarity_network_ui(df: pd.DataFrame) -> None:
+    """Reference GSE selector and similarity network for step 3."""
+    series_opts = sorted(df["Series"].dropna().unique())
+    idx = 0
+    if st.session_state.reference_gse and st.session_state.reference_gse in series_opts:
+        idx = 1 + series_opts.index(st.session_state.reference_gse)
+    ref_choice = st.selectbox(
+        "Reference GSE (optional)",
+        options=[None, *series_opts],
+        index=idx,
+        format_func=lambda x: "(none)" if x is None else x,
+        help="Compare every other GSE's supplementary filenames to this layout. "
+        "The network still shows all pairwise links as background context.",
+    )
+    st.session_state.reference_gse = (
+        str(ref_choice).strip().upper() if ref_choice else None
+    )
+    file_similarity_network(df, reference_gse=st.session_state.reference_gse)
 
 st.session_state["_rendered_download_keys"] = set()
 dir_base = str(WORK_DIR)
@@ -266,7 +291,7 @@ if st.session_state.df_active is not None and not st.session_state.df_active.emp
         st.session_state.summary_df = summary
         dataset_snapshot_plots(summary)
         file_per_sample_complexity(summary)
-        file_similarity_network(st.session_state.df_active)
+        _file_similarity_network_ui(st.session_state.df_active)
     else:
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -283,7 +308,7 @@ if st.session_state.df_active is not None and not st.session_state.df_active.emp
                 file_per_sample_complexity(summary)
         with c3:
             if st.button("Similarity network"):
-                file_similarity_network(st.session_state.df_active)
+                _file_similarity_network_ui(st.session_state.df_active)
 
 # --- 4. GSE selection ---
 if st.session_state.df_active is not None:
@@ -304,9 +329,12 @@ if st.session_state.df_active is not None:
             sim_threshold = st.slider(
                 "Minimum Jaccard similarity",
                 0.0, 1.0, 0.8, 0.05,
-                help="Series with edge weight ≥ threshold are added.",
+                help="Used by both bulk-add buttons below.",
             )
-            if st.button("Add GSEs linked at similarity threshold"):
+            if st.button(
+                "Add GSEs linked at similarity threshold (all pairs)",
+                help="Adds every GSE that appears in any pairwise edge at or above the threshold.",
+            ):
                 _, edges, _ = calculate_similarity_edges(
                     st.session_state.df_active
                 )
@@ -315,6 +343,30 @@ if st.session_state.df_active is not None:
                 st.session_state.gse_selection_list.extend(list(added))
                 after = len(set(st.session_state.gse_selection_list))
                 st.success(f"Added {after - before} GSEs ({len(added)} pairs at ≥{sim_threshold}).")
+            ref_gse = st.session_state.get("reference_gse")
+            if ref_gse:
+                if st.button(
+                    f"Add GSEs similar to reference ({ref_gse}, ≥ threshold)",
+                    help="Adds non-reference GSEs whose supplementary filename similarity "
+                    "to the reference GSE meets the threshold (step 3 reference mode).",
+                ):
+                    series_files, _, _ = calculate_similarity_edges(
+                        st.session_state.df_active
+                    )
+                    ref_edges = calculate_reference_edges(series_files, ref_gse)
+                    added = {e[1] for e in ref_edges if e[2] >= sim_threshold}
+                    before = len(set(st.session_state.gse_selection_list))
+                    st.session_state.gse_selection_list.extend(sorted(added))
+                    after = len(set(st.session_state.gse_selection_list))
+                    st.success(
+                        f"Added {after - before} GSEs similar to {ref_gse} "
+                        f"(≥{sim_threshold}, {len(added)} matched)."
+                    )
+            else:
+                st.caption(
+                    "Set a reference GSE in step 3 to enable "
+                    "\"Add GSEs similar to reference\"."
+                )
         with col2:
             manual_gse = st.text_input("Manual GSE ID", placeholder="GSE12345")
             if st.button("Add manual GSE") and manual_gse:

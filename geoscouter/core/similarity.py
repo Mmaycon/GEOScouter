@@ -30,6 +30,13 @@ Scores range from **0** (no overlap) to **1** (identical supplementary file list
 
 Small changes (e.g. 0.80 vs 0.85) usually mean a few extra or missing files — use the network
 plot and hover tooltips to inspect which series cluster together.
+
+**Reference mode**
+
+Optionally pick one GSE as a **reference layout**. The network still shows **general pairwise**
+similarity (light gray edges, same Jaccard metric). **Reference edges** connect only the
+reference GSE to every other series (star topology), drawn on top in a distinct style so you
+can compare each series' supplementary filenames against your chosen favorite layout.
 """
 
 
@@ -45,17 +52,25 @@ def _filename_column(df: pd.DataFrame) -> str:
     return "Supplementary file"
 
 
-def calculate_similarity_edges(df: pd.DataFrame):
+def series_filename_sets(df: pd.DataFrame) -> pd.Series:
+    """Map each Series to the set of normalized supplementary filenames."""
     col = _filename_column(df)
-    series_files = df.groupby("Series")[col].apply(
+    return df.groupby("Series")[col].apply(
         lambda files: {normalize_filename(f) for f in files if normalize_filename(f)}
     )
+
+
+def _jaccard(a: set, b: set) -> float:
+    union = a | b
+    if not union:
+        return 0.0
+    return len(a & b) / len(union)
+
+
+def calculate_similarity_edges(df: pd.DataFrame):
+    series_files = series_filename_sets(df)
     edges = [
-        (
-            s1,
-            s2,
-            len(series_files[s1] & series_files[s2]) / len(series_files[s1] | series_files[s2]),
-        )
+        (s1, s2, _jaccard(series_files[s1], series_files[s2]))
         for s1, s2 in combinations(series_files.index, 2)
         if len(series_files[s1] | series_files[s2]) > 0
     ]
@@ -63,3 +78,70 @@ def calculate_similarity_edges(df: pd.DataFrame):
     graph.add_nodes_from(series_files.index)
     graph.add_weighted_edges_from(e for e in edges if e[2] > 0)
     return series_files, edges, graph
+
+
+def calculate_reference_edges(
+    series_files: pd.Series, reference_gse: str
+) -> list[tuple[str, str, float]]:
+    """Star edges from reference GSE to every other series (Jaccard on filename sets)."""
+    ref = reference_gse.strip().upper()
+    if ref not in series_files.index:
+        return []
+    ref_set = series_files[ref]
+    return [
+        (ref, other, _jaccard(ref_set, series_files[other]))
+        for other in series_files.index
+        if other != ref
+    ]
+
+
+def reference_vs_gse_filenames(
+    series_files: pd.Series, reference_gse: str, other_gse: str
+) -> tuple[float, list[str], list[str], list[str]]:
+    """Jaccard score and sorted shared / reference-only / other-only filenames."""
+    ref = reference_gse.strip().upper()
+    other = other_gse.strip().upper()
+    ref_set = series_files.get(ref, set())
+    other_set = series_files.get(other, set())
+    shared = sorted(ref_set & other_set)
+    only_ref = sorted(ref_set - other_set)
+    only_other = sorted(other_set - ref_set)
+    return _jaccard(ref_set, other_set), shared, only_ref, only_other
+
+
+def reference_comparison_table(
+    series_files: pd.Series, reference_gse: str
+) -> pd.DataFrame:
+    """Rows for each non-reference GSE, sorted by similarity descending."""
+    ref = reference_gse.strip().upper()
+    rows = []
+    for other in series_files.index:
+        if other == ref:
+            continue
+        score, shared, only_ref, only_other = reference_vs_gse_filenames(
+            series_files, ref, other
+        )
+        rows.append(
+            {
+                "GSE": other,
+                "Similarity to reference": score,
+                "Shared files": ", ".join(shared) if shared else "",
+                "Only in reference": ", ".join(only_ref) if only_ref else "",
+                "Only in GSE": ", ".join(only_other) if only_other else "",
+            }
+        )
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "GSE",
+                "Similarity to reference",
+                "Shared files",
+                "Only in reference",
+                "Only in GSE",
+            ]
+        )
+    return (
+        pd.DataFrame(rows)
+        .sort_values("Similarity to reference", ascending=False)
+        .reset_index(drop=True)
+    )
