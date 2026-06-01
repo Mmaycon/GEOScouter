@@ -46,4 +46,4 @@ def dataset_snapshot_plots(summary_df):
             xaxis_tickangle=-90,
             legend_title_text="Technology",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")

@@ -233,12 +233,12 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
         ),
     )
     fig.update_layout(height=700)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     if use_reference:
         st.markdown("#### Comparison to reference GSE")
         st.dataframe(
             reference_comparison_table(series_files, ref),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
