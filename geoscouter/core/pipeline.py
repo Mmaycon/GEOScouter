@@ -6,8 +6,8 @@ import re
 import xml.etree.ElementTree as ET
 
 import pandas as pd
-import requests
 import streamlit as st
+from geoscouter.utils.http import ncbi_get
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
@@ -83,7 +83,7 @@ def fetch_custom_supp_files_xml(gse_id: str, data: dict) -> list[dict]:
     """
     url = _CUSTOM_XML_URL.format(gse_id=gse_id)
     try:
-        response = requests.get(url, timeout=45)
+        response = ncbi_get(url, timeout=45)
         response.raise_for_status()
         root = ET.fromstring(response.content)
     except Exception as e:
@@ -106,7 +106,7 @@ def has_custom_download_link(soup: BeautifulSoup) -> bool:
 
 def parse_custom_supp_files(custom_href: str, base_url: str, data: dict):
     custom_url = urljoin(base_url, custom_href)
-    r = requests.get(custom_url, timeout=30)
+    r = ncbi_get(custom_url, timeout=30)
     r.raise_for_status()
     soup = BeautifulSoup(r.text, "html.parser")
     supp_data = []
@@ -149,7 +149,7 @@ def process_gse(gse_id, driver=None, super_series=None):
         super_series = gse_id
 
     url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse_id}"
-    response = requests.get(url, timeout=30)
+    response = ncbi_get(url, timeout=30)
     soup = BeautifulSoup(response.text, "html.parser")
 
     desired_fields = [
@@ -168,7 +168,7 @@ def process_gse(gse_id, driver=None, super_series=None):
                 data[label] = value
 
     soft_url = f"{url}&format=soft"
-    soft_response = requests.get(soft_url, timeout=30)
+    soft_response = ncbi_get(soft_url, timeout=30)
     soft_text = soft_response.text
     platforms = set(re.findall(r"(GPL\d+)", soft_text))
     samples = set(re.findall(r"(GSM\d+)", soft_text))
@@ -309,6 +309,9 @@ def run_geo_pipeline(dir_base, proximity_window=10):
             except Exception:
                 pass
 
+    from geoscouter.core.platforms import ensure_platform_labels
+
     df_combined = pd.DataFrame(all_data)
+    df_combined = ensure_platform_labels(df_combined)
     df_combined.to_csv(os.path.join(dir_base, "geo_webscrap.csv"), index=False)
     return df_combined

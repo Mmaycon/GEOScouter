@@ -10,7 +10,7 @@ def file_per_sample_complexity(summary_df):
         y="num_samples",
         color="Platform_Label",
         hover_name="Series",
-        hover_data=["Hover_Title", "Platforms", "num_samples", "total_size_mb"],
+        hover_data=["Hover_Title", "Platform_labels", "Platforms", "num_samples", "total_size_mb"],
         title="Unique supplementary files vs samples per series",
         labels={"Platform_Label": "Platform"},
     )
@@ -19,8 +19,9 @@ def file_per_sample_complexity(summary_df):
             "<b>%{hovertext}</b><br>"
             "Title: %{customdata[0]}<br>"
             "Platform: %{customdata[1]}<br>"
-            "Samples: %{customdata[2]}<br>"
-            "Total size (MB): %{customdata[3]}<extra></extra>"
+            "GPL: %{customdata[2]}<br>"
+            "Samples: %{customdata[3]}<br>"
+            "Total size (MB): %{customdata[4]}<extra></extra>"
         )
     )
     fig.update_layout(height=600)

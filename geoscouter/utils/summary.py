@@ -5,12 +5,19 @@ from geoscouter.utils.text import wrap_text_for_plotly
 
 def normalize_scrape_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    for col in ["Platforms", "Series", "Samples"]:
+    for col in ["Platforms", "Platform_labels", "Series", "Samples"]:
         if col not in df.columns:
             df[col] = pd.NA
 
     df["Platforms"] = (
         df["Platforms"]
+        .fillna("")
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
+    df["Platform_labels"] = (
+        df["Platform_labels"]
         .fillna("")
         .astype(str)
         .str.replace(r"\s+", " ", regex=True)
@@ -44,6 +51,13 @@ def platform_group(p_str):
     return "Multiple Platforms" if "," in str(p_str) else str(p_str)
 
 
+def platform_label(labels_str, platforms_str):
+    labels = "" if pd.isnull(labels_str) else str(labels_str).strip()
+    if labels:
+        return "Multiple platforms" if ", " in labels else labels
+    return platform_group(platforms_str)
+
+
 def build_series_summary(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate scrape rows to one row per GSE series."""
     df = df.copy()
@@ -57,11 +71,15 @@ def build_series_summary(df: pd.DataFrame) -> pd.DataFrame:
             num_file_types=(file_col, "nunique"),
             num_files=("Supplementary file", "nunique"),
             Platforms=("Platforms", "first"),
+            Platform_labels=("Platform_labels", "first"),
             Title=("Title", "first"),
         )
         .reset_index()
     )
-    summary["Platform_Group"] = summary["Platforms"].apply(platform_group)
+    summary["Platform_Group"] = summary.apply(
+        lambda row: platform_label(row["Platform_labels"], row["Platforms"]),
+        axis=1,
+    )
     summary["Platform_Label"] = summary["Platform_Group"]
     summary["Hover_Title"] = summary["Title"].apply(wrap_text_for_plotly)
     return summary
