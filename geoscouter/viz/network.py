@@ -107,23 +107,10 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
             )
 
     node_info_df = df.drop_duplicates(subset="Series").set_index("Series")
-    node_x, node_y, node_text, node_hover_text, node_sizes, node_colors, node_lines = (
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
 
-    for node in graph.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        node_text.append(node)
+    def _node_hover(node: str, is_ref_node: bool) -> str:
         degree = graph.degree(node)
-        is_ref = use_reference and node == ref
+        ref_label = "<br><b>Reference layout</b>" if is_ref_node else ""
         if node in node_info_df.index:
             info = node_info_df.loc[node]
             title_val = info.get("Title", "N/A")
@@ -131,8 +118,7 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
             assay_val = info.get("Platform_labels") or info.get("Study_type") or "N/A"
             instrument = info.get("Platform_title") or "N/A"
             gpl_val = info.get("Platforms", "N/A")
-            ref_label = "<br><b>Reference layout</b>" if is_ref else ""
-            node_hover_text.append(
+            return (
                 f"<b>{node}</b>{ref_label}<br>Title: {title_str[:80]}<br>"
                 f"Assay: {assay_val}<br>"
                 f"Instrument: {instrument}<br>"
@@ -140,35 +126,53 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
                 f"Samples: {info.get('Samples', 'N/A')}<br>"
                 f"Connections: {degree}"
             )
-        else:
-            ref_label = "<br><b>Reference layout</b>" if is_ref else ""
-            node_hover_text.append(f"<b>{node}</b>{ref_label}<br>Connections: {degree}")
+        return f"<b>{node}</b>{ref_label}<br>Connections: {degree}"
 
-        if is_ref:
-            node_sizes.append(22)
-            node_colors.append("#d4a017")
-            node_lines.append(dict(width=3, color="#8b6914"))
-        else:
-            node_sizes.append(15)
-            node_colors.append("#5a6c7d")
-            node_lines.append(dict(width=2, color="#ffffff"))
+    def _scatter_nodes(nodes, size, color, line):
+        if not nodes:
+            return None
+        return go.Scatter(
+            x=[pos[n][0] for n in nodes],
+            y=[pos[n][1] for n in nodes],
+            mode="markers+text",
+            hoverinfo="text",
+            text=nodes,
+            textposition="top center",
+            hovertext=[_node_hover(n, use_reference and n == ref) for n in nodes],
+            marker=dict(size=size, color=color, line=line),
+        )
 
-    node_trace = go.Scatter(
-        x=node_x,
-        y=node_y,
-        mode="markers+text",
-        hoverinfo="text",
-        text=node_text,
-        textposition="top center",
-        hovertext=node_hover_text,
-        marker=dict(
-            size=node_sizes,
-            color=node_colors,
-            line=node_lines,
-        ),
-    )
+    all_nodes = list(graph.nodes())
+    if use_reference and ref in all_nodes:
+        other_nodes = [n for n in all_nodes if n != ref]
+        node_traces = [
+            t
+            for t in [
+                _scatter_nodes(
+                    other_nodes,
+                    15,
+                    "#5a6c7d",
+                    dict(width=2, color="#ffffff"),
+                ),
+                _scatter_nodes(
+                    [ref],
+                    22,
+                    "#d4a017",
+                    dict(width=3, color="#8b6914"),
+                ),
+            ]
+            if t is not None
+        ]
+    else:
+        trace = _scatter_nodes(
+            all_nodes,
+            15,
+            "#5a6c7d",
+            dict(width=2, color="#ffffff"),
+        )
+        node_traces = [trace] if trace is not None else []
 
-    data = edge_traces + [node_trace]
+    data = edge_traces + node_traces
     all_weights = [e[2] for e in edges if e[2] > 0]
     if all_weights:
         data.append(
