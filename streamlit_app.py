@@ -71,8 +71,19 @@ for key, default in {
     "metadata_search_results": None,
     "metadata_matched_gses": None,
     "reference_gse": None,
+    "viz_show_snapshot": False,
+    "viz_show_complexity": False,
+    "viz_show_network": False,
 }.items():
     st.session_state.setdefault(key, default)
+
+
+def _reset_visualizations() -> None:
+    """Hide step-3 plots after the working set changes."""
+    st.session_state.viz_show_snapshot = False
+    st.session_state.viz_show_complexity = False
+    st.session_state.viz_show_network = False
+    st.session_state.summary_df = None
 
 
 def _file_similarity_network_ui(df: pd.DataFrame) -> None:
@@ -85,6 +96,7 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
         "Reference GSE (optional)",
         options=[None, *series_opts],
         index=idx,
+        key="reference_gse_select",
         format_func=lambda x: "(none)" if x is None else x,
         help="Compare every other GSE's supplementary filenames to this layout. "
         "The network still shows all pairwise links as background context.",
@@ -208,6 +220,7 @@ if st.session_state.df_combined is not None:
         max_samples = st.number_input("Max samples (0 = off)", min_value=0, value=0, step=10)
 
     if st.button("Apply scrape-level filters", type="primary"):
+        _reset_visualizations()
         st.session_state.df_active = apply_series_filters(
             st.session_state.df_combined,
             selected_technologies=selected_technologies or None,
@@ -220,6 +233,7 @@ if st.session_state.df_combined is not None:
         st.success(f"Active dataset: {n} series.")
 
     if st.button("Reset to full scrape"):
+        _reset_visualizations()
         st.session_state.df_active = st.session_state.df_combined.copy()
         st.rerun()
 
@@ -272,6 +286,7 @@ if st.session_state.df_combined is not None:
                 )
                 st.session_state.metadata_matched_gses = matched
                 if active is not None and matched:
+                    _reset_visualizations()
                     st.session_state.df_active = active[
                         active["Series"].isin({g.upper() for g in matched})
                     ].copy()
@@ -286,29 +301,40 @@ if st.session_state.df_active is not None and not st.session_state.df_active.emp
     st.header("3. Visualize datasets")
     st.caption("Plots reflect the current working set from step 2.")
 
-    if st.button("Generate all visualizations", type="primary"):
-        summary = build_series_summary(st.session_state.df_active)
-        st.session_state.summary_df = summary
-        dataset_snapshot_plots(summary)
-        file_per_sample_complexity(summary)
-        _file_similarity_network_ui(st.session_state.df_active)
-    else:
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("Snapshot bars"):
+    c0, c1, c2, c3 = st.columns(4)
+    with c0:
+        if st.button("Generate all visualizations", type="primary"):
+            st.session_state.viz_show_snapshot = True
+            st.session_state.viz_show_complexity = True
+            st.session_state.viz_show_network = True
+    with c1:
+        if st.button("Snapshot bars"):
+            st.session_state.viz_show_snapshot = True
+    with c2:
+        if st.button("File vs samples"):
+            st.session_state.viz_show_complexity = True
+    with c3:
+        if st.button("Similarity network"):
+            st.session_state.viz_show_network = True
+
+    if any(
+        (
+            st.session_state.viz_show_snapshot,
+            st.session_state.viz_show_complexity,
+            st.session_state.viz_show_network,
+        )
+    ):
+        if st.session_state.viz_show_snapshot or st.session_state.viz_show_complexity:
+            summary = st.session_state.summary_df
+            if summary is None:
                 summary = build_series_summary(st.session_state.df_active)
                 st.session_state.summary_df = summary
+            if st.session_state.viz_show_snapshot:
                 dataset_snapshot_plots(summary)
-        with c2:
-            if st.button("File vs samples"):
-                summary = st.session_state.summary_df
-                if summary is None:
-                    summary = build_series_summary(st.session_state.df_active)
-                    st.session_state.summary_df = summary
+            if st.session_state.viz_show_complexity:
                 file_per_sample_complexity(summary)
-        with c3:
-            if st.button("Similarity network"):
-                _file_similarity_network_ui(st.session_state.df_active)
+        if st.session_state.viz_show_network:
+            _file_similarity_network_ui(st.session_state.df_active)
 
 # --- 4. GSE selection ---
 if st.session_state.df_active is not None:
