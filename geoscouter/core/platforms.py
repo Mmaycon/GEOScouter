@@ -17,6 +17,19 @@ GPL_RE = re.compile(r"GPL\d+")
 PLATFORM_CACHE_PATH = WORK_DIR / "platform_cache.json"
 
 
+def _is_generic_other(value: str) -> bool:
+    return (value or "").strip().lower() == "other"
+
+
+def resolve_gpl_technology(info: dict[str, str], gpl_id: str) -> str:
+    """GEO Technology column, falling back to Title when technology is \"other\"."""
+    title = str(info.get("title") or gpl_id).strip()
+    technology = str(info.get("technology") or "").replace("_", " ").strip()
+    if _is_generic_other(technology) or not technology:
+        return title if title != gpl_id else gpl_id
+    return technology
+
+
 def parse_gpl_ids(platforms: str | None) -> list[str]:
     if platforms is None or pd.isna(platforms) or not str(platforms).strip():
         return []
@@ -36,7 +49,7 @@ def build_technology_label(study_type: str, assay_hint: str = "") -> str:
         return study_type
     if assay_hint:
         return assay_hint
-    return study_type or "Unknown"
+    return "Unknown"
 
 
 def _parse_soft_field(soft_text: str, field: str) -> str:
@@ -104,18 +117,22 @@ def warm_gpl_cache(gpl_ids: set[str], cache_path: Path = PLATFORM_CACHE_PATH) ->
 def gpl_display_parts(gpl_id: str, cache: dict[str, dict]) -> tuple[str, str]:
     info = cache.get(gpl_id, {})
     title = str(info.get("title") or gpl_id).strip()
-    technology = str(info.get("technology") or "").strip() or "Unknown technology"
+    technology = resolve_gpl_technology(info, gpl_id)
     return title, technology
 
 
 def platform_filter_label(gpl_id: str, cache: dict[str, dict] | None = None) -> str:
-    """Label for GPL multiselect: GEO Technology · Title (GPL...)."""
+    """Label for GPL multiselect; never shows bare \"other\"."""
     if cache is None:
         cache = _load_cache()
     if gpl_id not in cache:
         cache = warm_gpl_cache({gpl_id})
-    title, technology = gpl_display_parts(gpl_id, cache)
-    if title != gpl_id:
+    info = cache.get(gpl_id, {})
+    title = str(info.get("title") or gpl_id).strip()
+    technology = resolve_gpl_technology(info, gpl_id)
+    raw_technology = str(info.get("technology") or "").replace("_", " ").strip()
+
+    if not _is_generic_other(raw_technology) and title != gpl_id and title != technology:
         return f"{technology} · {title} ({gpl_id})"
     return f"{technology} ({gpl_id})"
 
@@ -127,11 +144,12 @@ def _join_gpl_field(platforms: str | None, cache: dict[str, dict], field: str) -
     values = []
     for gpl_id in gpl_ids:
         info = cache.get(gpl_id, {})
-        val = str(info.get(field) or "").strip()
-        if field == "title" and not val:
-            val = gpl_id
-        if field == "technology":
-            val = val.replace("_", " ") or "Unknown technology"
+        if field == "title":
+            val = str(info.get("title") or gpl_id).strip() or gpl_id
+        elif field == "technology":
+            val = resolve_gpl_technology(info, gpl_id)
+        else:
+            val = str(info.get(field) or "").strip()
         values.append(val)
     return ", ".join(values)
 
@@ -207,12 +225,12 @@ def ensure_platform_labels(
 
 
 def technology_filter_options(df: pd.DataFrame) -> list[str]:
-    """Unique series assay labels (from gds_result Type)."""
+    """Unique series assay labels (from gds_result Type), excluding bare \"Other\"."""
     if df is None or df.empty:
         return []
     series = df.drop_duplicates("Series")
     labels = series.get("Platform_labels", pd.Series(dtype=str)).fillna("").astype(str).str.strip()
-    labels = labels.loc[labels != ""]
+    labels = labels.loc[(labels != "") & ~labels.str.lower().eq("other")]
     return sorted(labels.unique())
 
 
