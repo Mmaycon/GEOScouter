@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 import streamlit as st
+from geoscouter.core.platforms import build_technology_label, ensure_platform_labels
 from geoscouter.utils.http import ncbi_get
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -144,7 +145,7 @@ def supplementary_files_from_soft(soft_text: str):
     return files
 
 
-def process_gse(gse_id, driver=None, super_series=None):
+def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None = None):
     if not super_series:
         super_series = gse_id
 
@@ -173,8 +174,16 @@ def process_gse(gse_id, driver=None, super_series=None):
     platforms = set(re.findall(r"(GPL\d+)", soft_text))
     samples = set(re.findall(r"(GSM\d+)", soft_text))
 
+    series_meta = series_meta or {}
+    study_type = series_meta.get("study_type", "")
+    assay_hint = series_meta.get("assay_hint", "")
+    technology_label = build_technology_label(study_type, assay_hint)
+
     data.update({
         "Platforms": ", ".join(sorted(platforms)),
+        "Study_type": study_type,
+        "Assay_hint": assay_hint,
+        "Platform_labels": technology_label,
         "Samples": len(samples),
         "Series": gse_id,
         "SuperSeries": super_series,
@@ -268,9 +277,14 @@ def run_geo_pipeline(dir_base, proximity_window=10):
     with open(gds_file_path, encoding="utf-8") as f:
         text = f.read()
 
-    from geoscouter.core.gds_parse import build_gds_processed_df, parse_gds_result
+    from geoscouter.core.gds_parse import (
+        build_gds_processed_df,
+        parse_gds_result,
+        parse_gds_series_metadata,
+    )
 
     scrape_gses, excluded_superseries = parse_gds_result(text)
+    series_metadata = parse_gds_series_metadata(text)
     if excluded_superseries:
         st.info(
             f"Excluded {len(excluded_superseries)} SuperSeries parent(s): "
@@ -280,7 +294,11 @@ def run_geo_pipeline(dir_base, proximity_window=10):
         st.error("No subseries/standalone GSEs found in gds_result.txt after filtering.")
         return None
 
-    df = build_gds_processed_df(scrape_gses, proximity_window=proximity_window)
+    df = build_gds_processed_df(
+        scrape_gses,
+        proximity_window=proximity_window,
+        series_metadata=series_metadata,
+    )
     df.to_csv(os.path.join(dir_base, "gds_processed.csv"), index=False)
 
     driver = None
@@ -299,7 +317,9 @@ def run_geo_pipeline(dir_base, proximity_window=10):
         total = len(gse_list)
         for i, gse in enumerate(gse_list):
             status_text.text(f"Scraping {gse} ({i + 1}/{total})...")
-            all_data.extend(process_gse(gse, driver))
+            all_data.extend(
+                process_gse(gse, driver, series_meta=series_metadata.get(gse, {}))
+            )
             progress_bar.progress((i + 1) / total)
         status_text.success("Web scraping complete!")
     finally:
@@ -309,9 +329,7 @@ def run_geo_pipeline(dir_base, proximity_window=10):
             except Exception:
                 pass
 
-    from geoscouter.core.platforms import ensure_platform_labels
-
     df_combined = pd.DataFrame(all_data)
-    df_combined = ensure_platform_labels(df_combined)
+    df_combined = ensure_platform_labels(df_combined, gds_path=gds_file_path)
     df_combined.to_csv(os.path.join(dir_base, "geo_webscrap.csv"), index=False)
     return df_combined

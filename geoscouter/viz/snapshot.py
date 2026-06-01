@@ -27,7 +27,7 @@ def dataset_snapshot_plots(summary_df):
                 "total_size_mb": True,
             },
             title=title,
-            labels={"Platform_Label": "Platform"},
+            labels={"Platform_Label": "Technology"},
         )
         fig.update_traces(
             hovertemplate=(
@@ -41,6 +41,6 @@ def dataset_snapshot_plots(summary_df):
         fig.update_layout(
             height=500,
             xaxis_tickangle=-90,
-            legend_title_text="Platform",
+            legend_title_text="Technology",
         )
         st.plotly_chart(fig, use_container_width=True)

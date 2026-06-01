@@ -28,6 +28,7 @@ def apply_series_filters(
     df: pd.DataFrame,
     *,
     selected_platforms: list[str] | None = None,
+    selected_technologies: list[str] | None = None,
     min_samples: int = 0,
     max_samples: int = 0,
     gse_selection: Iterable[str] | None = None,
@@ -36,6 +37,16 @@ def apply_series_filters(
     df_base = normalize_scrape_df(df)
     series_level = df_base.drop_duplicates(subset=["Series"]).copy()
     keep_series = set(series_level["Series"].unique())
+
+    if selected_technologies:
+        label_col = "Platform_labels" if "Platform_labels" in series_level.columns else "Study_type"
+        if label_col in series_level.columns:
+            keep_series &= set(
+                series_level.loc[
+                    series_level[label_col].isin(selected_technologies),
+                    "Series",
+                ]
+            )
 
     if selected_platforms:
         platform_regex = "|".join(re.escape(p) for p in selected_platforms)

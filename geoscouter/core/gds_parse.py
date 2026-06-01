@@ -7,6 +7,8 @@ import pandas as pd
 # Block split: numbered entries ("1. Title", "2. Title", ...)
 _ENTRY_SPLIT = re.compile(r"\n(?=\d+\.\s)")
 _ACCESSION_RE = re.compile(r"Series\s+Accession:\s+(GSE\d+)", re.IGNORECASE)
+_TYPE_RE = re.compile(r"^Type:\s*(.+)$", re.MULTILINE)
+_ORGANISM_RE = re.compile(r"^Organism:\s*(.+)$", re.MULTILINE)
 _SUPER_COMPOSED_RE = re.compile(
     r"This\s+SuperSeries\s+is\s+composed",
     re.IGNORECASE,
@@ -65,9 +67,46 @@ def parse_gds_result(text: str) -> tuple[list[str], list[str]]:
     return ordered_scrape, excluded_unique
 
 
+def _parse_assay_hint(block: str) -> str:
+    """Extract assay tag from the series title, e.g. [scRNA-Seq] or (CROP-Seq, ...)."""
+    first_line = block.split("\n", 1)[0]
+    first_line = re.sub(r"^\d+\.\s*", "", first_line).strip()
+    bracket = re.search(r"\[([^\]]+)\]", first_line)
+    if bracket:
+        return bracket.group(1).strip()
+    paren = re.search(r"\(([^)]+)\)\s*$", first_line)
+    if paren:
+        return paren.group(1).strip()
+    return ""
+
+
+def parse_gds_series_metadata(text: str) -> dict[str, dict[str, str]]:
+    """Return per-GSE fields parsed from gds_result.txt (Type, Organism, assay hint)."""
+    blocks = _ENTRY_SPLIT.split(text.strip())
+    metadata: dict[str, dict[str, str]] = {}
+
+    for block in blocks:
+        if not block.strip():
+            continue
+        match = _ACCESSION_RE.search(block)
+        if not match:
+            continue
+        gse = match.group(1).upper()
+        type_match = _TYPE_RE.search(block)
+        organism_match = _ORGANISM_RE.search(block)
+        metadata[gse] = {
+            "study_type": type_match.group(1).strip() if type_match else "",
+            "organism": organism_match.group(1).strip() if organism_match else "",
+            "assay_hint": _parse_assay_hint(block),
+        }
+
+    return metadata
+
+
 def build_gds_processed_df(
     scrape_gses: list[str],
     proximity_window: int = 10,
+    series_metadata: dict[str, dict[str, str]] | None = None,
 ) -> pd.DataFrame:
     """Cluster numeric GSE IDs by proximity (legacy behavior on filtered list)."""
     gse_nums = sorted(
@@ -108,6 +147,7 @@ def build_gds_processed_df(
         rows.append({
             "GSE": f"GSE{m.group(1)}",
             "Cluster": f"Cluster{gse_to_cluster.get(num, 1)}",
+            "Study_type": (series_metadata or {}).get(gse, {}).get("study_type", ""),
         })
 
     return pd.DataFrame(rows).drop_duplicates(subset=["GSE"]).reset_index(drop=True)
