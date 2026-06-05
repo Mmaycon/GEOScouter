@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import streamlit as st
 from geoscouter.core.platforms import build_technology_label, ensure_platform_labels
+from geoscouter.core.tar_expand import expand_tar_rows, is_tar_filename
 from geoscouter.utils.http import ncbi_get
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -191,6 +192,7 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
 
     supp_data: list[dict] = []
     soft_supp_files = supplementary_files_from_soft(soft_text)
+    url_map: dict[str, str] = {name: file_url for name, file_url in soft_supp_files}
 
     # HTML supplementary table (may list only GSE*_RAW.tar)
     html_supp_rows: list[dict] = []
@@ -207,15 +209,23 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
         for row in supp_table.find_all("tr")[1:]:
             cells = row.find_all("td")
             if len(cells) >= 1:
-                file_name = cells[0].get_text(strip=True)
+                filename_cell = cells[0]
+                link = filename_cell.find("a")
+                file_name = (
+                    link.get_text(strip=True)
+                    if link
+                    else filename_cell.get_text(strip=True)
+                )
                 if not file_name or file_name.lower().startswith("sra"):
                     continue
+                if link and link.get("href"):
+                    url_map[file_name] = urljoin(url, link["href"])
                 size = cells[1].get_text(strip=True) if len(cells) >= 2 else ""
                 html_supp_rows.append(_supp_row(data, file_name, size))
 
     html_names = [r["Supplementary file"] for r in html_supp_rows]
     needs_custom = has_custom_download_link(soup) or (
-        html_names and all(is_archive_bundle(n) for n in html_names)
+        html_names and any(is_tar_filename(n) for n in html_names)
     )
 
     if needs_custom:
@@ -225,35 +235,55 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
             logger.info(
                 "Loaded %d file(s) from (custom) XML for %s", len(custom_rows), gse_id
             )
-        elif driver is not None and SELENIUM_AVAILABLE:
-            try:
-                driver.get(url)
-                wait = WebDriverWait(driver, 7)
-                custom_link = wait.until(
-                    EC.element_to_be_clickable((By.LINK_TEXT, "(custom)"))
-                )
-                custom_link.click()
-                wait.until(
-                    EC.presence_of_all_elements_located(
-                        (By.XPATH, "//table//tr[td/input[@type='checkbox']]")
+        else:
+            custom_link_tag = soup.find("a", string="(custom)")
+            if custom_link_tag and custom_link_tag.get("href"):
+                try:
+                    html_custom_rows = parse_custom_supp_files(
+                        custom_link_tag["href"], url, data
                     )
-                )
-                for row in driver.find_elements(
-                    By.XPATH, "//table//tr[td/input[@type='checkbox']]"
-                ):
-                    cells = row.find_elements(By.TAG_NAME, "td")
-                    if len(cells) >= 2:
-                        file_name = cells[0].text.strip()
-                        if file_name.lower() == "(all files)":
-                            continue
-                        size = cells[1].text.strip()
-                        supp_data.append(_supp_row(data, file_name, size))
-            except Exception as e:
-                logger.warning("Selenium (custom) fallback failed for %s: %s", gse_id, e)
+                    if html_custom_rows:
+                        supp_data = html_custom_rows
+                        logger.info(
+                            "Loaded %d file(s) from (custom) HTML for %s",
+                            len(html_custom_rows),
+                            gse_id,
+                        )
+                except Exception as e:
+                    logger.warning(
+                        "HTML (custom) fallback failed for %s: %s", gse_id, e
+                    )
+            if not supp_data and driver is not None and SELENIUM_AVAILABLE:
+                try:
+                    driver.get(url)
+                    wait = WebDriverWait(driver, 7)
+                    custom_link = wait.until(
+                        EC.element_to_be_clickable((By.LINK_TEXT, "(custom)"))
+                    )
+                    custom_link.click()
+                    wait.until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, "//table//tr[td/input[@type='checkbox']]")
+                        )
+                    )
+                    for row in driver.find_elements(
+                        By.XPATH, "//table//tr[td/input[@type='checkbox']]"
+                    ):
+                        cells = row.find_elements(By.TAG_NAME, "td")
+                        if len(cells) >= 2:
+                            file_name = cells[0].text.strip()
+                            if file_name.lower() == "(all files)":
+                                continue
+                            size = cells[1].text.strip()
+                            supp_data.append(_supp_row(data, file_name, size))
+                except Exception as e:
+                    logger.warning(
+                        "Selenium (custom) fallback failed for %s: %s", gse_id, e
+                    )
 
     if not supp_data and soft_supp_files:
         for file_name, file_url in soft_supp_files:
-            if needs_custom and is_archive_bundle(file_name):
+            if needs_custom and is_tar_filename(file_name):
                 continue
             row = _supp_row(data, file_name, "")
             row["Supplementary URL"] = file_url
@@ -265,6 +295,12 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
     if not supp_data:
         supp_data.append(data)
 
+    for row in supp_data:
+        fname = str(row.get("Supplementary file", "")).strip()
+        if fname and not row.get("Supplementary URL") and fname in url_map:
+            row["Supplementary URL"] = url_map[fname]
+
+    supp_data = expand_tar_rows(supp_data, gse_id, url_map)
     return supp_data
 
 

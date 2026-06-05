@@ -47,7 +47,10 @@ from geoscouter.core.similarity import (
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
 from geoscouter.viz.complexity import file_per_sample_complexity
-from geoscouter.viz.network import file_similarity_network
+from geoscouter.viz.network import (
+    file_similarity_network,
+    supervised_file_similarity_network,
+)
 from geoscouter.viz.snapshot import dataset_snapshot_plots
 
 st.set_page_config(layout="wide", page_title="GEOScouter")
@@ -71,6 +74,7 @@ for key, default in {
     "metadata_search_results": None,
     "metadata_matched_gses": None,
     "reference_gse": None,
+    "supervised_training_gses": [],
     "viz_show_snapshot": False,
     "viz_show_complexity": False,
     "viz_show_network": False,
@@ -87,24 +91,83 @@ def _reset_visualizations() -> None:
 
 
 def _file_similarity_network_ui(df: pd.DataFrame) -> None:
-    """Reference GSE selector and similarity network for step 3."""
+    """Network type selector and similarity plots for step 3."""
     series_opts = sorted(df["Series"].dropna().unique())
-    idx = 0
-    if st.session_state.reference_gse and st.session_state.reference_gse in series_opts:
-        idx = 1 + series_opts.index(st.session_state.reference_gse)
-    ref_choice = st.selectbox(
-        "Reference GSE (optional)",
-        options=[None, *series_opts],
-        index=idx,
-        key="reference_gse_select",
-        format_func=lambda x: "(none)" if x is None else x,
-        help="Compare every other GSE's supplementary filenames to this layout. "
-        "The network still shows all pairwise links as background context.",
+    network_mode = st.radio(
+        "Network type",
+        options=["Pairwise / reference", "Supervised structure"],
+        horizontal=True,
+        help="Pairwise: Jaccard on exact filenames (optional single reference GSE). "
+        "Supervised: learn a file-structure signature from multiple training GSEs.",
     )
-    st.session_state.reference_gse = (
-        str(ref_choice).strip().upper() if ref_choice else None
+
+    if network_mode == "Pairwise / reference":
+        idx = 0
+        if st.session_state.reference_gse and st.session_state.reference_gse in series_opts:
+            idx = 1 + series_opts.index(st.session_state.reference_gse)
+        ref_choice = st.selectbox(
+            "Reference GSE (optional)",
+            options=[None, *series_opts],
+            index=idx,
+            key="reference_gse_select",
+            format_func=lambda x: "(none)" if x is None else x,
+            help="Compare every other GSE's supplementary filenames to this layout. "
+            "The network still shows all pairwise links as background context.",
+        )
+        st.session_state.reference_gse = (
+            str(ref_choice).strip().upper() if ref_choice else None
+        )
+        file_similarity_network(df, reference_gse=st.session_state.reference_gse)
+        return
+
+    valid_training = [
+        g for g in st.session_state.supervised_training_gses if g in series_opts
+    ]
+    st.session_state.supervised_training_gses = valid_training
+
+    col_a, col_b = st.columns([3, 1])
+    with col_a:
+        training_choice = st.multiselect(
+            "Training GSEs (define the file structure signature)",
+            options=series_opts,
+            default=valid_training,
+            key="supervised_training_select",
+            help="Select GSEs whose supplementary file layout should teach the signature.",
+        )
+        st.session_state.supervised_training_gses = [
+            str(g).strip().upper() for g in training_choice
+        ]
+    with col_b:
+        if st.button(
+            "Use comparison list",
+            help="Copy GSE IDs from step 4 comparison list into training GSEs.",
+        ):
+            from_list = sorted(
+                {
+                    g.strip().upper()
+                    for g in st.session_state.gse_selection_list
+                    if g and g.strip().upper() in series_opts
+                }
+            )
+            st.session_state.supervised_training_gses = from_list
+            st.session_state["supervised_training_select"] = from_list
+            st.rerun()
+
+    min_support = st.slider(
+        "Minimum pattern support across training GSEs",
+        0.5,
+        1.0,
+        0.8,
+        0.05,
+        help="A filename pattern must appear in at least this fraction of training GSEs "
+        "to enter the signature.",
     )
-    file_similarity_network(df, reference_gse=st.session_state.reference_gse)
+
+    supervised_file_similarity_network(
+        df,
+        training_gses=st.session_state.supervised_training_gses,
+        min_support_ratio=min_support,
+    )
 
 st.session_state["_rendered_download_keys"] = set()
 dir_base = str(WORK_DIR)
@@ -299,7 +362,11 @@ if st.session_state.df_combined is not None:
 # --- 3. Visualize (once, on active set) ---
 if st.session_state.df_active is not None and not st.session_state.df_active.empty:
     st.header("3. Visualize datasets")
-    st.caption("Plots reflect the current working set from step 2.")
+    st.caption(
+        "Plots reflect the current working set from step 2. "
+        "Click **Similarity network**, then choose **Pairwise / reference** or "
+        "**Supervised structure**."
+    )
 
     c0, c1, c2, c3 = st.columns(4)
     with c0:
