@@ -16,6 +16,7 @@ _GSM_RE = re.compile(r"GSM\d+", re.IGNORECASE)
 _GSE_RE = re.compile(r"GSE\d+", re.IGNORECASE)
 _SRR_RE = re.compile(r"SRR\d+", re.IGNORECASE)
 _SRX_RE = re.compile(r"SRX\d+", re.IGNORECASE)
+_LONG_NUM_RE = re.compile(r"\d{6,}")
 
 SIMILARITY_HELP = """
 **What is the similarity score?**
@@ -53,21 +54,18 @@ SUPERVISED_SIMILARITY_HELP = """
 **Supervised file structure signature**
 
 Pick one or more **training GSEs** whose supplementary file layout you want to use as a template.
-Each filename is converted to a **structure pattern** by replacing study-specific IDs
-(`GSM…`, `GSE…`, `SRR…`, `SRX…`) with placeholders, keeping extensions and layout tokens
-(`_R1`, `_R2`, `barcodes`, etc.).
+The app proposes **match patterns** from their filenames (full names and structural suffixes such as
+`transcripts.csv.gz`, `matrix.mtx.gz`, `xenium.txt.gz`).
 
-A **signature pattern** is kept when it appears in at least the chosen fraction of training GSEs
-(default 80%). Each pattern is weighted by how often it appears across the training set.
+Review the pattern table: **include** the rules you want, and **edit the match text** to keep only
+the part that defines your technology layout.
 
-Every **non-training** GSE is scored with **weighted signature coverage**:
+Every **non-training** GSE is scored with **weighted coverage** of your included rules.
+A rule matches when any supplementary filename **contains** the match text (case-insensitive).
 
-`similarity = sum(pattern weights matched) / sum(all signature pattern weights)`
+`similarity = sum(weights of matched rules) / sum(weights of included rules)`
 
-Scores range from **0** (none of the taught layout) to **1** (matches the full signature).
-
-Training GSEs define the signature but are not ranked against it — the network links them
-to the central signature node to show which series you used as examples.
+Training GSEs define the signature but are not ranked against it.
 """
 
 
@@ -87,7 +85,264 @@ def filename_to_pattern(name) -> str:
     pattern = _GSE_RE.sub("{series}", pattern)
     pattern = _SRR_RE.sub("{run}", pattern)
     pattern = _SRX_RE.sub("{run}", pattern)
+    pattern = _LONG_NUM_RE.sub("{id}", pattern)
     return pattern.lower()
+
+
+_GENERIC_SUFFIXES = frozenset(
+    {"gz", "tar.gz", "txt.gz", "csv.gz", "tsv.gz", "json.gz", "tif.gz", "ome.gz"}
+)
+
+
+def suffix_candidates_from_pattern(pattern: str, min_len: int = 8) -> list[str]:
+    """Progressive suffix tokens from a normalized pattern (shortest meaningful first)."""
+    if not pattern:
+        return []
+    seen: set[str] = set()
+    ordered: list[str] = []
+
+    def _add(candidate: str) -> None:
+        c = candidate.strip().lower()
+        if c and "." in c and c not in seen:
+            seen.add(c)
+            ordered.append(c)
+
+    _add(pattern)
+    parts = pattern.split("_")
+    for i in range(1, len(parts)):
+        _add("_".join(parts[i:]))
+    dot_parts = pattern.split(".")
+    for i in range(1, len(dot_parts)):
+        _add(".".join(dot_parts[i:]))
+
+    meaningful = [
+        c for c in sorted(ordered, key=len) if len(c) >= min_len and c not in _GENERIC_SUFFIXES
+    ]
+    if meaningful:
+        return meaningful
+    non_generic = [c for c in sorted(ordered, key=len) if c not in _GENERIC_SUFFIXES]
+    if non_generic:
+        return non_generic
+    return sorted(ordered, key=len)
+
+
+def default_match_for_filename(filename: str) -> str:
+    """Shortest structural suffix for a supplementary filename."""
+    cands = suffix_candidates_from_pattern(filename_to_pattern(filename))
+    return cands[0] if cands else filename_to_pattern(filename)
+
+
+def rule_matches_filenames(match_pattern: str, filenames: set[str]) -> bool:
+    """True when any filename contains the match text (normalized, case-insensitive)."""
+    needle = str(match_pattern).strip().lower()
+    if not needle:
+        return False
+    for fname in filenames:
+        hay = filename_to_pattern(fname)
+        if hay == needle or needle in hay:
+            return True
+    return False
+
+
+def _normalize_training_list(
+    series_files: pd.Series, training_gses: list[str]
+) -> list[str]:
+    training: list[str] = []
+    seen: set[str] = set()
+    for gse in training_gses:
+        g = str(gse).strip().upper()
+        if not g or g in seen or g not in series_files.index:
+            continue
+        seen.add(g)
+        training.append(g)
+    return training
+
+
+def discover_pattern_candidates(
+    series_files: pd.Series,
+    training_gses: list[str],
+    min_support_ratio: float = 0.8,
+) -> pd.DataFrame:
+    """
+    Propose editable signature rules grouped by default structural suffix.
+
+    Returns a DataFrame with columns:
+    Include, Match pattern, Auto-detected, Example filenames, Training GSEs, Weight
+    """
+    training = _normalize_training_list(series_files, training_gses)
+    if not training:
+        return pd.DataFrame(
+            columns=[
+                "Include",
+                "Match pattern",
+                "Auto-detected",
+                "Example filenames",
+                "Training GSEs",
+                "Weight",
+                "rule_id",
+            ]
+        )
+
+    n = len(training)
+    min_support = max(1, math.ceil(min_support_ratio * n))
+    groups: dict[str, dict] = {}
+
+    for gse in training:
+        seen_defaults: set[str] = set()
+        for fname in series_files[gse]:
+            auto = filename_to_pattern(fname)
+            default = default_match_for_filename(fname)
+            if not default or default in seen_defaults:
+                continue
+            seen_defaults.add(default)
+            bucket = groups.setdefault(
+                default,
+                {
+                    "auto_patterns": set(),
+                    "examples": [],
+                    "gses": set(),
+                },
+            )
+            bucket["auto_patterns"].add(auto)
+            if len(bucket["examples"]) < 3:
+                bucket["examples"].append(normalize_filename(fname))
+            bucket["gses"].add(gse)
+
+    rows = []
+    for idx, (default, data) in enumerate(
+        sorted(groups.items(), key=lambda x: (-len(x[1]["gses"]), x[0]))
+    ):
+        gse_count = len(data["gses"])
+        auto = max(data["auto_patterns"], key=len)
+        rows.append(
+            {
+                "Include": gse_count >= min_support,
+                "Match pattern": default,
+                "Auto-detected": auto,
+                "Example filenames": "; ".join(data["examples"]),
+                "Training GSEs": f"{gse_count}/{n}",
+                "Weight": round(gse_count / n, 3),
+                "rule_id": f"rule_{idx}_{default[:40]}",
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def signature_rules_from_dataframe(rules_df: pd.DataFrame) -> list[dict]:
+    """Convert edited pattern table to rule dicts for scoring."""
+    if rules_df is None or rules_df.empty:
+        return []
+    rules: list[dict] = []
+    for _, row in rules_df.iterrows():
+        if not row.get("Include", False):
+            continue
+        match = str(row.get("Match pattern", "")).strip()
+        if not match:
+            continue
+        try:
+            weight = float(row.get("Weight", 1.0))
+        except (TypeError, ValueError):
+            weight = 1.0
+        rules.append(
+            {
+                "rule_id": str(row.get("rule_id", match)),
+                "match_pattern": match,
+                "weight": weight,
+            }
+        )
+    return rules
+
+
+def supervised_similarity_from_rules(
+    rules: list[dict], filenames: set[str]
+) -> tuple[float, list[str], list[str]]:
+    """Weighted coverage score and matched / missing rule match strings."""
+    if not rules:
+        return 0.0, [], []
+    total = sum(r["weight"] for r in rules)
+    matched = []
+    missing = []
+    score_weight = 0.0
+    for rule in rules:
+        pat = rule["match_pattern"]
+        if rule_matches_filenames(pat, filenames):
+            matched.append(pat)
+            score_weight += rule["weight"]
+        else:
+            missing.append(pat)
+    score = score_weight / total if total else 0.0
+    return score, matched, missing
+
+
+def calculate_supervised_edges_from_rules(
+    series_files: pd.Series,
+    training_gses: list[str],
+    rules: list[dict],
+) -> tuple[list[dict], set[str], list[tuple[str, str, float]]]:
+    """Star edges using user-defined signature rules."""
+    training = set(_normalize_training_list(series_files, training_gses))
+    edges: list[tuple[str, str, float]] = []
+
+    for gse in series_files.index:
+        if gse in training:
+            continue
+        score, _, _ = supervised_similarity_from_rules(rules, series_files[gse])
+        if score > 0:
+            edges.append((SIGNATURE_NODE, gse, score))
+
+    return rules, training, edges
+
+
+def supervised_comparison_table_from_rules(
+    series_files: pd.Series,
+    training_gses: list[str],
+    rules: list[dict],
+) -> pd.DataFrame:
+    """Rows for each non-training GSE sorted by rule-based supervised similarity."""
+    training = set(_normalize_training_list(series_files, training_gses))
+    rows = []
+
+    for gse in series_files.index:
+        if gse in training:
+            continue
+        score, matched, missing = supervised_similarity_from_rules(
+            rules, series_files[gse]
+        )
+        rows.append(
+            {
+                "GSE": gse,
+                "Similarity to signature": score,
+                "Matching rules": ", ".join(matched) if matched else "",
+                "Missing rules": ", ".join(missing) if missing else "",
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "GSE",
+                "Similarity to signature",
+                "Matching rules",
+                "Missing rules",
+            ]
+        )
+    return (
+        pd.DataFrame(rows)
+        .sort_values("Similarity to signature", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def applied_signature_rules_table(rules: list[dict]) -> pd.DataFrame:
+    if not rules:
+        return pd.DataFrame(columns=["Match pattern", "Weight"])
+    return pd.DataFrame(
+        [
+            {"Match pattern": r["match_pattern"], "Weight": r["weight"]}
+            for r in rules
+        ]
+    )
 
 
 def _filename_column(df: pd.DataFrame) -> str:

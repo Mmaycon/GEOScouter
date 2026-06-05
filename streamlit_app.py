@@ -43,6 +43,8 @@ from geoscouter.core.similarity import (
     SIMILARITY_HELP,
     calculate_reference_edges,
     calculate_similarity_edges,
+    discover_pattern_candidates,
+    signature_rules_from_dataframe,
 )
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
@@ -75,6 +77,10 @@ for key, default in {
     "metadata_matched_gses": None,
     "reference_gse": None,
     "supervised_training_gses": [],
+    "supervised_pattern_training_key": None,
+    "supervised_pattern_editor_df": None,
+    "supervised_applied_rules": [],
+    "supervised_signature_applied": False,
     "viz_show_snapshot": False,
     "viz_show_complexity": False,
     "viz_show_network": False,
@@ -159,15 +165,103 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
         1.0,
         0.8,
         0.05,
-        help="A filename pattern must appear in at least this fraction of training GSEs "
-        "to enter the signature.",
+        help="Used when discovering patterns: a rule is pre-selected if it appears in "
+        "at least this fraction of training GSEs. You can still toggle any rule manually.",
     )
 
-    supervised_file_similarity_network(
-        df,
-        training_gses=st.session_state.supervised_training_gses,
-        min_support_ratio=min_support,
+    training = st.session_state.supervised_training_gses
+    if not training:
+        st.info("Select at least one training GSE to discover file-structure patterns.")
+        return
+
+    series_files, _, _ = calculate_similarity_edges(df)
+    training_key = tuple(sorted(training))
+
+    if training_key != st.session_state.supervised_pattern_training_key:
+        st.session_state.supervised_pattern_training_key = training_key
+        st.session_state.supervised_pattern_editor_df = discover_pattern_candidates(
+            series_files, training, min_support_ratio=min_support
+        )
+        st.session_state.supervised_applied_rules = []
+        st.session_state.supervised_signature_applied = False
+
+    st.markdown("#### Review signature patterns")
+    st.caption(
+        "Edit **Match pattern** to keep only the structural part you care about "
+        "(e.g. `transcripts.csv.gz`). Uncheck **Include** to drop a pattern from the signature."
     )
+
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        if st.button("Rediscover patterns"):
+            st.session_state.supervised_pattern_editor_df = discover_pattern_candidates(
+                series_files, training, min_support_ratio=min_support
+            )
+            st.session_state.supervised_applied_rules = []
+            st.session_state.supervised_signature_applied = False
+            st.rerun()
+    with btn_col2:
+        apply_signature = st.button("Apply signature & show network", type="primary")
+
+    editor_df = st.session_state.supervised_pattern_editor_df
+    if editor_df is None or editor_df.empty:
+        st.warning("No supplementary filenames found for the selected training GSEs.")
+        return
+
+    edited_df = st.data_editor(
+        editor_df,
+        column_config={
+            "Include": st.column_config.CheckboxColumn(
+                help="Include this rule when scoring other GSEs.",
+            ),
+            "Match pattern": st.column_config.TextColumn(
+                help="Text searched within supplementary filenames (case-insensitive).",
+                required=True,
+            ),
+            "Auto-detected": st.column_config.TextColumn(
+                disabled=True,
+                help="Full auto-normalized filename pattern from training data.",
+            ),
+            "Example filenames": st.column_config.TextColumn(
+                disabled=True,
+            ),
+            "Training GSEs": st.column_config.TextColumn(
+                disabled=True,
+            ),
+            "Weight": st.column_config.NumberColumn(
+                min_value=0.0,
+                max_value=1.0,
+                step=0.05,
+                format="%.3f",
+            ),
+            "rule_id": None,
+        },
+        disabled=["Auto-detected", "Example filenames", "Training GSEs"],
+        hide_index=True,
+        key="supervised_pattern_data_editor",
+        width="stretch",
+    )
+    st.session_state.supervised_pattern_editor_df = edited_df
+
+    if apply_signature:
+        rules = signature_rules_from_dataframe(edited_df)
+        if not rules:
+            st.error("Enable at least one pattern with a non-empty Match pattern.")
+        else:
+            st.session_state.supervised_applied_rules = rules
+            st.session_state.supervised_signature_applied = True
+
+    if (
+        st.session_state.supervised_signature_applied
+        and st.session_state.supervised_applied_rules
+    ):
+        supervised_file_similarity_network(
+            df,
+            training_gses=training,
+            rules=st.session_state.supervised_applied_rules,
+        )
+    else:
+        st.info("Edit patterns above, then click **Apply signature & show network**.")
 
 st.session_state["_rendered_download_keys"] = set()
 dir_base = str(WORK_DIR)

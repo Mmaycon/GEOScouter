@@ -10,8 +10,14 @@ from geoscouter.core.similarity import (
     SIGNATURE_NODE,
     build_structure_signature,
     calculate_supervised_edges,
+    calculate_supervised_edges_from_rules,
+    default_match_for_filename,
+    discover_pattern_candidates,
     filename_to_pattern,
+    rule_matches_filenames,
     series_pattern_sets,
+    signature_rules_from_dataframe,
+    supervised_similarity_from_rules,
     supervised_similarity_score,
 )
 
@@ -33,6 +39,90 @@ class TestFilenameToPattern(unittest.TestCase):
 
     def test_keeps_static_names(self):
         self.assertEqual(filename_to_pattern("barcodes.tsv.gz"), "barcodes.tsv.gz")
+
+    def test_xenium_suffix(self):
+        self.assertEqual(
+            default_match_for_filename("GSM8313612.xenium.txt.gz"),
+            "xenium.txt.gz",
+        )
+
+    def test_transcripts_suffix(self):
+        self.assertEqual(
+            default_match_for_filename(
+                "GSM8313612_0013717_asthma_healthy_transcripts.csv.gz"
+            ),
+            "transcripts.csv.gz",
+        )
+
+
+class TestPatternRules(unittest.TestCase):
+    def test_rule_matches_by_suffix(self):
+        files = {
+            "GSM9_0013717_asthma_healthy_transcripts.csv.gz",
+            "GSM9.xenium.txt.gz",
+        }
+        self.assertTrue(rule_matches_filenames("transcripts.csv.gz", files))
+        self.assertTrue(rule_matches_filenames("xenium.txt.gz", files))
+        self.assertFalse(rule_matches_filenames("matrix.mtx.gz", files))
+
+    def test_discover_groups_xenium_suffixes(self):
+        series_files = _series_files(
+            {
+                "GSE1": [
+                    "GSM8313612.xenium.txt.gz",
+                    "GSM8313612_0013717_asthma_healthy_transcripts.csv.gz",
+                    "GSM8313612_0013717_asthma_healthy_cell_matrix.mtx.gz",
+                ],
+                "GSE2": [
+                    "GSM8313613.xenium.txt.gz",
+                    "GSM8313613_0013718_asthma_healthy_transcripts.csv.gz",
+                    "GSM8313613_0013718_asthma_healthy_cell_matrix.mtx.gz",
+                ],
+            }
+        )
+        df = discover_pattern_candidates(series_files, ["GSE1", "GSE2"], 0.5)
+        matches = set(df["Match pattern"])
+        self.assertIn("transcripts.csv.gz", matches)
+        self.assertIn("matrix.mtx.gz", matches)
+        self.assertIn("xenium.txt.gz", matches)
+
+    def test_supervised_from_rules(self):
+        series_files = _series_files(
+            {
+                "GSE1": ["GSM1_healthy_transcripts.csv.gz", "GSM1.xenium.txt.gz"],
+                "GSE2": ["GSM2_other_transcripts.csv.gz"],
+            }
+        )
+        rules = signature_rules_from_dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Include": True,
+                        "Match pattern": "transcripts.csv.gz",
+                        "Weight": 1.0,
+                        "rule_id": "r1",
+                    },
+                    {
+                        "Include": True,
+                        "Match pattern": "xenium.txt.gz",
+                        "Weight": 1.0,
+                        "rule_id": "r2",
+                    },
+                ]
+            )
+        )
+        score, matched, missing = supervised_similarity_from_rules(
+            rules, series_files["GSE2"]
+        )
+        self.assertAlmostEqual(score, 0.5)
+        self.assertEqual(matched, ["transcripts.csv.gz"])
+        self.assertEqual(missing, ["xenium.txt.gz"])
+
+        _, training, edges = calculate_supervised_edges_from_rules(
+            series_files, ["GSE1"], rules
+        )
+        self.assertEqual(training, {"GSE1"})
+        self.assertTrue(any(e[1] == "GSE2" for e in edges))
 
 
 class TestStructureSignature(unittest.TestCase):
