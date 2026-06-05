@@ -275,22 +275,39 @@ def supervised_similarity_from_rules(
     return score, matched, missing
 
 
-def calculate_supervised_edges_from_rules(
+def score_supervised_candidates(
     series_files: pd.Series,
     training_gses: list[str],
     rules: list[dict],
-) -> tuple[list[dict], set[str], list[tuple[str, str, float]]]:
-    """Star edges using user-defined signature rules."""
+) -> tuple[set[str], dict[str, float]]:
+    """Score every non-training GSE against the signature rules."""
     training = set(_normalize_training_list(series_files, training_gses))
-    edges: list[tuple[str, str, float]] = []
+    scores: dict[str, float] = {}
 
     for gse in series_files.index:
         if gse in training:
             continue
         score, _, _ = supervised_similarity_from_rules(rules, series_files[gse])
-        if score > 0:
-            edges.append((SIGNATURE_NODE, gse, score))
+        scores[gse] = score
 
+    return training, scores
+
+
+def calculate_supervised_edges_from_rules(
+    series_files: pd.Series,
+    training_gses: list[str],
+    rules: list[dict],
+    edge_threshold: float = 0.0,
+) -> tuple[list[dict], set[str], list[tuple[str, str, float]]]:
+    """Star edges for candidates at or above edge_threshold."""
+    training, scores = score_supervised_candidates(
+        series_files, training_gses, rules
+    )
+    edges = [
+        (SIGNATURE_NODE, gse, score)
+        for gse, score in scores.items()
+        if score >= edge_threshold
+    ]
     return rules, training, edges
 
 
