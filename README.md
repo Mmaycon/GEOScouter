@@ -2,6 +2,30 @@
 
 GEOScouter helps you profile and compare public datasets on [GEO](https://www.ncbi.nlm.nih.gov/geo/) from an exported `gds_result.txt` search.
 
+## Sync with GitHub
+
+Before editing or running the app, check that your local folder matches GitHub. Add this alias to `~/.zshrc` (once):
+
+```bash
+alias geoscoutersync='cd /Users/mmarcao/Documents/GEOScouter_v3 && git fetch origin && git status -sb'
+```
+
+Reload your shell (`source ~/.zshrc`), then whenever you return to the project run:
+
+```bash
+geoscoutersync
+```
+
+Example output:
+
+```text
+## dev...origin/dev              # in sync — safe to work
+## dev...origin/dev [behind 2]   # run git pull before editing
+## dev...origin/dev [ahead 1]    # run git push when ready
+```
+
+Work on branch **`dev`** (see [Push to GitHub](#push-to-github)).
+
 ## Run locally
 
 ### First-time setup
@@ -43,9 +67,13 @@ Press `Ctrl+C` in the terminal where Streamlit is running.
 3. **Filter** by platform, sample count, and optional sample metadata **before** plotting
 4. Visualize, build a GSE comparison list, export CSV/Excel
 
+In step 3 you can choose **Pairwise / reference** (exact filename Jaccard) or **Supervised structure** (signature learned from multiple training GSEs).
+
 Example input: `data/input/gds_result.txt`
 
 After code changes, use **Delete all cached outputs** in the app (or delete cached CSVs) and re-run the pipeline.
+
+**Supplementary `.tar` files:** After the **(custom)** listing step, any remaining filenames ending in `.tar`, `.tar.gz`, or `.tgz` are opened remotely and their inner filenames are written to `geo_webscrap.csv` (the archive name itself is omitted). If expansion fails, the tar filename is kept.
 
 ### Optional: Selenium (local only)
 
@@ -73,7 +101,7 @@ legacy/app/          # previous monolithic scripts (reference)
 4. Main file path: **`streamlit_app.py`**
 5. Deploy
 
-No Chrome/Selenium is required on Streamlit Cloud; supplementary files are fetched via HTTP (including **(custom)** file lists for `*_RAW.tar` archives).
+No Chrome/Selenium is required on Streamlit Cloud; supplementary files are fetched via HTTP (including **(custom)** file lists for `*_RAW.tar` archives, and remote tar expansion for any remaining `.tar` entries).
 
 ## Push to GitHub
 

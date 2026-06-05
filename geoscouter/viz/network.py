@@ -1,13 +1,20 @@
+import math
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 from geoscouter.core.similarity import (
+    SIGNATURE_NODE,
     SIMILARITY_HELP,
+    SUPERVISED_SIMILARITY_HELP,
     calculate_reference_edges,
     calculate_similarity_edges,
+    calculate_supervised_edges,
     reference_comparison_table,
+    signature_patterns_table,
+    supervised_comparison_table,
 )
 
 
@@ -246,3 +253,216 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
             width="stretch",
             hide_index=True,
         )
+
+
+def supervised_file_similarity_network(
+    df: pd.DataFrame,
+    training_gses: list[str],
+    min_support_ratio: float = 0.8,
+):
+    st.subheader("Supervised file structure similarity network")
+    with st.expander("How is the signature calculated?", expanded=False):
+        st.markdown(SUPERVISED_SIMILARITY_HELP)
+
+    series_files, _, _ = calculate_similarity_edges(df)
+    signature, training, _, edges = calculate_supervised_edges(
+        series_files,
+        training_gses,
+        min_support_ratio=min_support_ratio,
+    )
+
+    if not training:
+        st.warning("Select at least one training GSE present in the active dataset.")
+        return
+
+    if not signature:
+        st.warning(
+            "No signature patterns met the support threshold across training GSEs. "
+            "Try lowering the pattern support ratio or adding more training GSEs."
+        )
+        return
+
+    node_info_df = df.drop_duplicates(subset="Series").set_index("Series")
+    candidates = [e[1] for e in edges]
+
+    pos: dict[str, tuple[float, float]] = {SIGNATURE_NODE: (0.0, 0.0)}
+
+    training_list = sorted(training)
+    for i, gse in enumerate(training_list):
+        angle = 2 * math.pi * i / max(len(training_list), 1)
+        pos[gse] = (0.22 * math.cos(angle), 0.22 * math.sin(angle))
+
+    sorted_edges = sorted(edges, key=lambda e: e[2], reverse=True)
+    for i, (_, gse, score) in enumerate(sorted_edges):
+        angle = 2 * math.pi * i / max(len(sorted_edges), 1)
+        radius = 0.45 + 0.35 * (1.0 - score)
+        pos[gse] = (radius * math.cos(angle), radius * math.sin(angle))
+
+    def _node_hover(node: str) -> str:
+        if node == SIGNATURE_NODE:
+            return (
+                f"<b>{SIGNATURE_NODE}</b><br>"
+                f"Training GSEs: {len(training)}<br>"
+                f"Signature patterns: {len(signature)}"
+            )
+        is_training = node in training
+        role = "<br><b>Training example</b>" if is_training else ""
+        if node in node_info_df.index:
+            info = node_info_df.loc[node]
+            title_val = info.get("Title", "N/A")
+            title_str = "N/A" if pd.isna(title_val) else str(title_val)
+            assay_val = info.get("Platform_labels") or info.get("Study_type") or "N/A"
+            return (
+                f"<b>{node}</b>{role}<br>Title: {title_str[:80]}<br>"
+                f"Assay: {assay_val}<br>Samples: {info.get('Samples', 'N/A')}"
+            )
+        return f"<b>{node}</b>{role}"
+
+    edge_traces = []
+
+    for gse in training_list:
+        x0, y0 = pos[SIGNATURE_NODE]
+        x1, y1 = pos[gse]
+        edge_traces.append(
+            go.Scatter(
+                x=[x0, x1],
+                y=[y0, y1],
+                mode="lines",
+                line=dict(width=2, color="rgba(52, 152, 219, 0.55)", dash="dot"),
+                hoverinfo="text",
+                hovertext=f"Training example: {gse}",
+                showlegend=False,
+            )
+        )
+
+    for _, gse, weight in sorted_edges:
+        x0, y0 = pos[SIGNATURE_NODE]
+        x1, y1 = pos[gse]
+        width = 2 + 4 * weight
+        edge_traces.append(
+            go.Scatter(
+                x=[x0, x1],
+                y=[y0, y1],
+                mode="lines",
+                line=dict(
+                    width=width,
+                    color=px.colors.sample_colorscale(
+                        [[0, "#e67e22"], [0.5, "#e74c3c"], [1, "#922b21"]], weight
+                    )[0],
+                ),
+                hoverinfo="text",
+                hovertext=f"Similarity to signature: {weight:.3f}",
+                showlegend=False,
+            )
+        )
+
+    def _scatter_nodes(nodes, size, color, line, text_labels=None):
+        if not nodes:
+            return None
+        labels = text_labels or nodes
+        return go.Scatter(
+            x=[pos[n][0] for n in nodes],
+            y=[pos[n][1] for n in nodes],
+            mode="markers+text",
+            hoverinfo="text",
+            text=labels,
+            textposition="top center",
+            hovertext=[_node_hover(n) for n in nodes],
+            marker=dict(size=size, color=color, line=line),
+        )
+
+    node_traces = [
+        t
+        for t in [
+            _scatter_nodes(
+                sorted_edges and [e[1] for e in sorted_edges] or [],
+                15,
+                "#5a6c7d",
+                dict(width=2, color="#ffffff"),
+            ),
+            _scatter_nodes(
+                training_list,
+                18,
+                "#3498db",
+                dict(width=2, color="#1f618d"),
+            ),
+            _scatter_nodes(
+                [SIGNATURE_NODE],
+                24,
+                "#d4a017",
+                dict(width=3, color="#8b6914"),
+                text_labels=["Signature"],
+            ),
+        ]
+        if t is not None
+    ]
+
+    data = edge_traces + node_traces
+    data.append(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(
+                colorscale=[[0, "#e67e22"], [0.5, "#e74c3c"], [1, "#922b21"]],
+                cmin=0,
+                cmax=1,
+                showscale=True,
+                colorbar=dict(thickness=15, title="Signature similarity"),
+            ),
+            hoverinfo="none",
+        )
+    )
+
+    fig = go.Figure(
+        data=data,
+        layout=go.Layout(
+            title=(
+                f"Supervised similarity from {len(training)} training GSE(s) "
+                f"({len(signature)} signature patterns)"
+            ),
+            showlegend=False,
+            hovermode="closest",
+            margin=dict(b=20, l=5, r=5, t=40),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            annotations=[
+                dict(
+                    x=0.02,
+                    y=0.98,
+                    xref="paper",
+                    yref="paper",
+                    text="Blue dotted: training GSEs",
+                    showarrow=False,
+                    xanchor="left",
+                    yanchor="top",
+                    font=dict(size=11, color="#2980b9"),
+                ),
+                dict(
+                    x=0.02,
+                    y=0.94,
+                    xref="paper",
+                    yref="paper",
+                    text="Orange/red: similarity to signature",
+                    showarrow=False,
+                    xanchor="left",
+                    yanchor="top",
+                    font=dict(size=11, color="#c0392b"),
+                ),
+            ],
+        ),
+    )
+    fig.update_layout(height=700)
+    st.plotly_chart(fig, width="stretch")
+
+    st.markdown("#### Signature patterns")
+    st.dataframe(signature_patterns_table(signature), width="stretch", hide_index=True)
+
+    st.markdown("#### Comparison to signature")
+    st.dataframe(
+        supervised_comparison_table(
+            series_files, list(training), min_support_ratio=min_support_ratio
+        ),
+        width="stretch",
+        hide_index=True,
+    )

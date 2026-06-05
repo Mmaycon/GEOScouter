@@ -1,11 +1,21 @@
 """Supplementary-file similarity between GEO series."""
 
+from __future__ import annotations
+
+import math
+import re
 from itertools import combinations
 
 import networkx as nx
 import pandas as pd
 
 FILE_RESOURCE_COL = "File type/resource"
+SIGNATURE_NODE = "File structure signature"
+
+_GSM_RE = re.compile(r"GSM\d+", re.IGNORECASE)
+_GSE_RE = re.compile(r"GSE\d+", re.IGNORECASE)
+_SRR_RE = re.compile(r"SRR\d+", re.IGNORECASE)
+_SRX_RE = re.compile(r"SRX\d+", re.IGNORECASE)
 
 SIMILARITY_HELP = """
 **What is the similarity score?**
@@ -39,11 +49,45 @@ reference GSE to every other series (star topology), drawn on top in a distinct 
 can compare each series' supplementary filenames against your chosen favorite layout.
 """
 
+SUPERVISED_SIMILARITY_HELP = """
+**Supervised file structure signature**
+
+Pick one or more **training GSEs** whose supplementary file layout you want to use as a template.
+Each filename is converted to a **structure pattern** by replacing study-specific IDs
+(`GSM…`, `GSE…`, `SRR…`, `SRX…`) with placeholders, keeping extensions and layout tokens
+(`_R1`, `_R2`, `barcodes`, etc.).
+
+A **signature pattern** is kept when it appears in at least the chosen fraction of training GSEs
+(default 80%). Each pattern is weighted by how often it appears across the training set.
+
+Every **non-training** GSE is scored with **weighted signature coverage**:
+
+`similarity = sum(pattern weights matched) / sum(all signature pattern weights)`
+
+Scores range from **0** (none of the taught layout) to **1** (matches the full signature).
+
+Training GSEs define the signature but are not ranked against it — the network links them
+to the central signature node to show which series you used as examples.
+"""
+
 
 def normalize_filename(name) -> str:
     if pd.isnull(name) or not str(name).strip():
         return ""
     return str(name).strip()
+
+
+def filename_to_pattern(name) -> str:
+    """Normalize a filename to a reusable structure token."""
+    raw = normalize_filename(name)
+    if not raw:
+        return ""
+    base = raw.replace("\\", "/").split("/")[-1]
+    pattern = _GSM_RE.sub("{sample}", base)
+    pattern = _GSE_RE.sub("{series}", pattern)
+    pattern = _SRR_RE.sub("{run}", pattern)
+    pattern = _SRX_RE.sub("{run}", pattern)
+    return pattern.lower()
 
 
 def _filename_column(df: pd.DataFrame) -> str:
@@ -57,6 +101,13 @@ def series_filename_sets(df: pd.DataFrame) -> pd.Series:
     col = _filename_column(df)
     return df.groupby("Series")[col].apply(
         lambda files: {normalize_filename(f) for f in files if normalize_filename(f)}
+    )
+
+
+def series_pattern_sets(series_files: pd.Series) -> pd.Series:
+    """Map each Series to the set of normalized filename structure patterns."""
+    return series_files.apply(
+        lambda files: {filename_to_pattern(f) for f in files if filename_to_pattern(f)}
     )
 
 
@@ -145,3 +196,142 @@ def reference_comparison_table(
         .sort_values("Similarity to reference", ascending=False)
         .reset_index(drop=True)
     )
+
+
+def build_structure_signature(
+    series_files: pd.Series,
+    training_gses: list[str],
+    min_support_ratio: float = 0.8,
+) -> tuple[dict[str, float], set[str]]:
+    """
+    Build weighted pattern signature from training GSEs.
+
+    Returns (pattern -> weight, normalized training GSE ids).
+    """
+    training = []
+    seen: set[str] = set()
+    for gse in training_gses:
+        g = str(gse).strip().upper()
+        if not g or g in seen or g not in series_files.index:
+            continue
+        seen.add(g)
+        training.append(g)
+
+    if not training:
+        return {}, set()
+
+    n = len(training)
+    min_support = max(1, math.ceil(min_support_ratio * n))
+    pattern_freq: dict[str, int] = {}
+
+    for gse in training:
+        for fname in series_files[gse]:
+            pat = filename_to_pattern(fname)
+            if pat:
+                pattern_freq[pat] = pattern_freq.get(pat, 0) + 1
+
+    signature = {
+        pat: count / n
+        for pat, count in pattern_freq.items()
+        if count >= min_support
+    }
+    return signature, set(training)
+
+
+def supervised_similarity_score(
+    signature: dict[str, float], candidate_patterns: set[str]
+) -> float:
+    """Weighted coverage of signature patterns in a candidate GSE."""
+    if not signature:
+        return 0.0
+    matched = sum(weight for pat, weight in signature.items() if pat in candidate_patterns)
+    total = sum(signature.values())
+    return matched / total if total else 0.0
+
+
+def pattern_jaccard(a: set[str], b: set[str]) -> float:
+    return _jaccard(a, b)
+
+
+def calculate_supervised_edges(
+    series_files: pd.Series,
+    training_gses: list[str],
+    min_support_ratio: float = 0.8,
+) -> tuple[dict[str, float], set[str], pd.Series, list[tuple[str, str, float]]]:
+    """
+    Star edges from virtual signature node to non-training GSEs.
+
+    Returns (signature, training_set, pattern_sets, edges).
+    """
+    signature, training = build_structure_signature(
+        series_files, training_gses, min_support_ratio=min_support_ratio
+    )
+    pattern_sets = series_pattern_sets(series_files)
+    edges: list[tuple[str, str, float]] = []
+
+    for gse in series_files.index:
+        if gse in training:
+            continue
+        score = supervised_similarity_score(signature, pattern_sets[gse])
+        if score > 0:
+            edges.append((SIGNATURE_NODE, gse, score))
+
+    return signature, training, pattern_sets, edges
+
+
+def supervised_comparison_table(
+    series_files: pd.Series,
+    training_gses: list[str],
+    min_support_ratio: float = 0.8,
+) -> pd.DataFrame:
+    """Rows for each non-training GSE sorted by supervised similarity."""
+    signature, training, pattern_sets, _ = calculate_supervised_edges(
+        series_files, training_gses, min_support_ratio=min_support_ratio
+    )
+    sig_patterns = set(signature)
+    rows = []
+
+    for gse in series_files.index:
+        if gse in training:
+            continue
+        patterns = pattern_sets[gse]
+        score = supervised_similarity_score(signature, patterns)
+        matched = sorted(sig_patterns & patterns)
+        missing = sorted(sig_patterns - patterns)
+        extra = sorted(patterns - sig_patterns)
+        rows.append(
+            {
+                "GSE": gse,
+                "Similarity to signature": score,
+                "Matching patterns": ", ".join(matched) if matched else "",
+                "Missing signature patterns": ", ".join(missing) if missing else "",
+                "Extra patterns": ", ".join(extra) if extra else "",
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "GSE",
+                "Similarity to signature",
+                "Matching patterns",
+                "Missing signature patterns",
+                "Extra patterns",
+            ]
+        )
+    return (
+        pd.DataFrame(rows)
+        .sort_values("Similarity to signature", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def signature_patterns_table(signature: dict[str, float]) -> pd.DataFrame:
+    """Display signature patterns and their training-set weights."""
+    if not signature:
+        return pd.DataFrame(columns=["Pattern", "Weight in training set"])
+    rows = [
+        {"Pattern": pat, "Weight in training set": weight}
+        for pat, weight in sorted(signature.items(), key=lambda x: (-x[1], x[0]))
+    ]
+    return pd.DataFrame(rows)
