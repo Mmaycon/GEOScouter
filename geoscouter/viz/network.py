@@ -9,12 +9,12 @@ from geoscouter.core.similarity import (
     SIGNATURE_NODE,
     SIMILARITY_HELP,
     SUPERVISED_SIMILARITY_HELP,
+    applied_signature_rules_table,
     calculate_reference_edges,
     calculate_similarity_edges,
-    calculate_supervised_edges,
+    calculate_supervised_edges_from_rules,
     reference_comparison_table,
-    signature_patterns_table,
-    supervised_comparison_table,
+    supervised_comparison_table_from_rules,
 )
 
 
@@ -258,32 +258,30 @@ def file_similarity_network(df: pd.DataFrame, reference_gse: str | None = None):
 def supervised_file_similarity_network(
     df: pd.DataFrame,
     training_gses: list[str],
-    min_support_ratio: float = 0.8,
+    rules: list[dict],
 ):
     st.subheader("Supervised file structure similarity network")
     with st.expander("How is the signature calculated?", expanded=False):
         st.markdown(SUPERVISED_SIMILARITY_HELP)
 
     series_files, _, _ = calculate_similarity_edges(df)
-    signature, training, _, edges = calculate_supervised_edges(
+    rules, training, edges = calculate_supervised_edges_from_rules(
         series_files,
         training_gses,
-        min_support_ratio=min_support_ratio,
+        rules,
     )
 
     if not training:
         st.warning("Select at least one training GSE present in the active dataset.")
         return
 
-    if not signature:
+    if not rules:
         st.warning(
-            "No signature patterns met the support threshold across training GSEs. "
-            "Try lowering the pattern support ratio or adding more training GSEs."
+            "No signature rules are enabled. Include at least one pattern in the table above."
         )
         return
 
     node_info_df = df.drop_duplicates(subset="Series").set_index("Series")
-    candidates = [e[1] for e in edges]
 
     pos: dict[str, tuple[float, float]] = {SIGNATURE_NODE: (0.0, 0.0)}
 
@@ -303,7 +301,7 @@ def supervised_file_similarity_network(
             return (
                 f"<b>{SIGNATURE_NODE}</b><br>"
                 f"Training GSEs: {len(training)}<br>"
-                f"Signature patterns: {len(signature)}"
+                f"Active rules: {len(rules)}"
             )
         is_training = node in training
         role = "<br><b>Training example</b>" if is_training else ""
@@ -419,7 +417,7 @@ def supervised_file_similarity_network(
         layout=go.Layout(
             title=(
                 f"Supervised similarity from {len(training)} training GSE(s) "
-                f"({len(signature)} signature patterns)"
+                f"({len(rules)} active rules)"
             ),
             showlegend=False,
             hovermode="closest",
@@ -455,13 +453,13 @@ def supervised_file_similarity_network(
     fig.update_layout(height=700)
     st.plotly_chart(fig, width="stretch")
 
-    st.markdown("#### Signature patterns")
-    st.dataframe(signature_patterns_table(signature), width="stretch", hide_index=True)
+    st.markdown("#### Applied signature rules")
+    st.dataframe(applied_signature_rules_table(rules), width="stretch", hide_index=True)
 
     st.markdown("#### Comparison to signature")
     st.dataframe(
-        supervised_comparison_table(
-            series_files, list(training), min_support_ratio=min_support_ratio
+        supervised_comparison_table_from_rules(
+            series_files, list(training), rules
         ),
         width="stretch",
         hide_index=True,

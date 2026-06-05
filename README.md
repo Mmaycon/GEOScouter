@@ -67,7 +67,7 @@ Press `Ctrl+C` in the terminal where Streamlit is running.
 3. **Filter** by platform, sample count, and optional sample metadata **before** plotting
 4. Visualize, build a GSE comparison list, export CSV/Excel
 
-In step 3 you can choose **Pairwise / reference** (exact filename Jaccard) or **Supervised structure** (signature learned from multiple training GSEs).
+In step 3 you can choose **Pairwise / reference** (exact filename Jaccard) or **Supervised structure** (review/edit match patterns from training GSEs, e.g. `transcripts.csv.gz`, then score other series).
 
 Example input: `data/input/gds_result.txt`
 
