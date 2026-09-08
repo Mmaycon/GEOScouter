@@ -41,8 +41,6 @@ import plotly.graph_objects as go
 import textwrap
 from pathlib import Path
 import tempfile
-import json
-import time
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
@@ -175,25 +173,6 @@ def supplementary_files_from_soft(soft_text: str):
             if filename:
                 files.append((filename, url))
     return files
-
-# #region agent log
-_DEBUG_LOG_PATH = "/mnt/scratch2/Maycon/GEOScouter/.cursor/debug-582543.log"
-
-def _dbg_log(location, message, data, hypothesis_id, run_id="pre-fix"):
-    try:
-        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "sessionId": "582543",
-                "runId": run_id,
-                "hypothesisId": hypothesis_id,
-                "location": location,
-                "message": message,
-                "data": data,
-                "timestamp": int(time.time() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-# #endregion
 
 def _is_ncbi_blocked(text: str) -> bool:
     lowered = text.lower()
@@ -419,22 +398,6 @@ def process_gse(gse_id, driver=None, super_series=None):
 
     if not supp_data:
         supp_data.append(data)
-
-    # #region agent log
-    _dbg_log(
-        "streamlite_GEOScouter_dev.py:process_gse",
-        "process_gse result",
-        {
-            "gse_id": gse_id,
-            "html_blocked": html_blocked,
-            "soft_blocked": soft_blocked,
-            "metadata_fields": sorted(data.keys()),
-            "supp_rows": len(supp_data),
-            "row_columns": sorted({k for row in supp_data for k in row}),
-        },
-        "A",
-    )
-    # #endregion
 
     return supp_data
 
