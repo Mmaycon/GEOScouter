@@ -146,13 +146,62 @@ def supplementary_files_from_soft(soft_text: str):
     return files
 
 
+def _is_ncbi_blocked(text: str) -> bool:
+    lowered = text.lower()
+    return "recaptcha" in lowered or "challengepage" in lowered
+
+
+def _fetch_soft_text(gse_id: str) -> str:
+    soft_url = (
+        f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi"
+        f"?acc={gse_id}&targ=self&form=text&view=full"
+    )
+    response = ncbi_get(soft_url, timeout=30)
+    response.raise_for_status()
+    return response.text
+
+
+def _parse_metadata_from_soft(soft_text: str) -> dict:
+    field_map = {
+        "title": "Title",
+        "summary": "Summary",
+        "overall_design": "Overall design",
+        "contact_name": "Contact name",
+        "contact_email": "E-mail(s)",
+        "contact_phone": "Phone",
+        "contact_institute": "Organization name",
+        "contact_department": "Department",
+        "contact_laboratory": "Lab",
+        "contact_city": "City",
+        "contact_state": "State/province",
+        "contact_country": "Country",
+    }
+    data = {}
+    for line in soft_text.splitlines():
+        if not line.startswith("!Series_"):
+            continue
+        key, value = line.split("=", 1)
+        soft_key = key.replace("!Series_", "").strip()
+        if soft_key not in field_map:
+            continue
+        parsed = value.strip()
+        if soft_key == "contact_name":
+            parsed = parsed.replace(",,", " ").strip()
+        data[field_map[soft_key]] = parsed
+    return data
+
+
 def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None = None):
     if not super_series:
         super_series = gse_id
 
     url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse_id}"
-    response = ncbi_get(url, timeout=30)
-    soup = BeautifulSoup(response.text, "html.parser")
+    soft_text = _fetch_soft_text(gse_id)
+    soft_blocked = _is_ncbi_blocked(soft_text)
+
+    html_response = ncbi_get(url, timeout=30)
+    html_blocked = _is_ncbi_blocked(html_response.text)
+    soup = BeautifulSoup(html_response.text, "html.parser") if not html_blocked else None
 
     desired_fields = [
         "Title", "Summary", "Overall design", "Contact name", "E-mail(s)",
@@ -160,20 +209,18 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
         "State/province", "Country",
     ]
 
-    data = {}
-    for row in soup.find_all("tr"):
-        cols = row.find_all("td")
-        if len(cols) == 2:
-            label = cols[0].get_text(strip=True)
-            value = cols[1].get_text(strip=True)
-            if label in desired_fields:
-                data[label] = value
+    data = _parse_metadata_from_soft(soft_text) if not soft_blocked else {}
+    if not data and soup is not None:
+        for row in soup.find_all("tr"):
+            cols = row.find_all("td")
+            if len(cols) == 2:
+                label = cols[0].get_text(strip=True)
+                value = cols[1].get_text(strip=True)
+                if label in desired_fields:
+                    data[label] = value
 
-    soft_url = f"{url}&format=soft"
-    soft_response = ncbi_get(soft_url, timeout=30)
-    soft_text = soft_response.text
-    platforms = set(re.findall(r"(GPL\d+)", soft_text))
-    samples = set(re.findall(r"(GSM\d+)", soft_text))
+    platforms = set(re.findall(r"(GPL\d+)", soft_text if not soft_blocked else ""))
+    samples = set(re.findall(r"(GSM\d+)", soft_text if not soft_blocked else ""))
 
     series_meta = series_meta or {}
     study_type = series_meta.get("study_type", "")
@@ -191,41 +238,46 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
     })
 
     supp_data: list[dict] = []
-    soft_supp_files = supplementary_files_from_soft(soft_text)
+    soft_supp_files = supplementary_files_from_soft(soft_text) if not soft_blocked else []
+    soft_names = [name for name, _ in soft_supp_files]
     url_map: dict[str, str] = {name: file_url for name, file_url in soft_supp_files}
 
     # HTML supplementary table (may list only GSE*_RAW.tar)
     html_supp_rows: list[dict] = []
     supp_table = None
-    for table in soup.find_all("table")[::-1]:
-        header_row = table.find("tr")
-        if not header_row:
-            continue
-        headers = [cell.get_text(strip=True) for cell in header_row.find_all(["td", "th"])]
-        if "Supplementary file" in headers:
-            supp_table = table
-            break
-    if supp_table:
-        for row in supp_table.find_all("tr")[1:]:
-            cells = row.find_all("td")
-            if len(cells) >= 1:
-                filename_cell = cells[0]
-                link = filename_cell.find("a")
-                file_name = (
-                    link.get_text(strip=True)
-                    if link
-                    else filename_cell.get_text(strip=True)
-                )
-                if not file_name or file_name.lower().startswith("sra"):
-                    continue
-                if link and link.get("href"):
-                    url_map[file_name] = urljoin(url, link["href"])
-                size = cells[1].get_text(strip=True) if len(cells) >= 2 else ""
-                html_supp_rows.append(_supp_row(data, file_name, size))
+    if soup is not None:
+        for table in soup.find_all("table")[::-1]:
+            header_row = table.find("tr")
+            if not header_row:
+                continue
+            headers = [cell.get_text(strip=True) for cell in header_row.find_all(["td", "th"])]
+            if "Supplementary file" in headers:
+                supp_table = table
+                break
+        if supp_table:
+            for row in supp_table.find_all("tr")[1:]:
+                cells = row.find_all("td")
+                if len(cells) >= 1:
+                    filename_cell = cells[0]
+                    link = filename_cell.find("a")
+                    file_name = (
+                        link.get_text(strip=True)
+                        if link
+                        else filename_cell.get_text(strip=True)
+                    )
+                    if not file_name or file_name.lower().startswith("sra"):
+                        continue
+                    if link and link.get("href"):
+                        url_map[file_name] = urljoin(url, link["href"])
+                    size = cells[1].get_text(strip=True) if len(cells) >= 2 else ""
+                    html_supp_rows.append(_supp_row(data, file_name, size))
 
     html_names = [r["Supplementary file"] for r in html_supp_rows]
-    needs_custom = has_custom_download_link(soup) or (
-        html_names and any(is_tar_filename(n) for n in html_names)
+    needs_custom = (
+        not soft_supp_files
+        or any(is_tar_filename(n) for n in soft_names)
+        or (soup is not None and has_custom_download_link(soup))
+        or (html_names and any(is_tar_filename(n) for n in html_names))
     )
 
     if needs_custom:
@@ -236,7 +288,7 @@ def process_gse(gse_id, driver=None, super_series=None, series_meta: dict | None
                 "Loaded %d file(s) from (custom) XML for %s", len(custom_rows), gse_id
             )
         else:
-            custom_link_tag = soup.find("a", string="(custom)")
+            custom_link_tag = soup.find("a", string="(custom)") if soup is not None else None
             if custom_link_tag and custom_link_tag.get("href"):
                 try:
                     html_custom_rows = parse_custom_supp_files(
