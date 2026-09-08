@@ -49,6 +49,7 @@ import textwrap
 from pathlib import Path
 import tempfile
 import hashlib
+import xml.etree.ElementTree as ET
 
 
 logging.basicConfig(level=logging.INFO)
@@ -144,13 +145,112 @@ def get_headless_driver():
     return webdriver.Chrome(options=chrome_options)
 
 
+def _is_ncbi_blocked(text: str) -> bool:
+    lowered = text.lower()
+    return "recaptcha" in lowered or "challengepage" in lowered
+
+def _fetch_soft_text(gse_id: str) -> str:
+    soft_url = (
+        f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi"
+        f"?acc={gse_id}&targ=self&form=text&view=full"
+    )
+    response = requests.get(soft_url, timeout=30)
+    response.raise_for_status()
+    return response.text
+
+def _parse_metadata_from_soft(soft_text: str) -> dict:
+    field_map = {
+        "title": "Title",
+        "summary": "Summary",
+        "overall_design": "Overall design",
+        "contact_name": "Contact name",
+        "contact_email": "E-mail(s)",
+        "contact_phone": "Phone",
+        "contact_institute": "Organization name",
+        "contact_department": "Department",
+        "contact_laboratory": "Lab",
+        "contact_city": "City",
+        "contact_state": "State/province",
+        "contact_country": "Country",
+    }
+    data = {}
+    for line in soft_text.splitlines():
+        if not line.startswith("!Series_"):
+            continue
+        key, value = line.split("=", 1)
+        soft_key = key.replace("!Series_", "").strip()
+        if soft_key not in field_map:
+            continue
+        parsed = value.strip()
+        if soft_key == "contact_name":
+            parsed = parsed.replace(",,", " ").strip()
+        data[field_map[soft_key]] = parsed
+    return data
+
+def _bytes_to_geo_size(size_bytes: str) -> str:
+    try:
+        nbytes = int(size_bytes)
+    except (TypeError, ValueError):
+        return ""
+    if nbytes >= 1024 ** 3:
+        return f"{nbytes / 1024 ** 3:.1f} Gb"
+    if nbytes >= 1024 ** 2:
+        return f"{nbytes / 1024 ** 2:.1f} Mb"
+    if nbytes >= 1024:
+        return f"{nbytes / 1024:.1f} Kb"
+    return f"{nbytes} b"
+
+def supplementary_files_from_soft(soft_text: str):
+    files = []
+    for line in soft_text.splitlines():
+        if line.startswith("!Series_supplementary_file"):
+            parts = line.split("=", 1)
+            if len(parts) != 2:
+                continue
+            url = parts[1].strip()
+            if not url:
+                continue
+            filename = url.rstrip("/").split("/")[-1]
+            if filename:
+                files.append((filename, url))
+    return files
+
+def _fetch_custom_supp_files_xml(gse_id: str, data: dict) -> list[dict]:
+    xml_url = f"https://www.ncbi.nlm.nih.gov/geo/download/?format=xml&acc={gse_id}"
+    try:
+        response = requests.get(xml_url, timeout=45)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+    except Exception as e:
+        logging.warning(f"Custom XML file list failed for {gse_id}: {e}")
+        return []
+
+    rows = []
+    for file_el in root.findall("file"):
+        file_name = (file_el.text or "").strip()
+        if not file_name:
+            continue
+        row_dict = data.copy()
+        row_dict.update({
+            "Supplementary file": file_name,
+            "Size": _bytes_to_geo_size(file_el.get("size", "")),
+            "File type/resource": file_name.rsplit(".", 1)[-1] if "." in file_name else "unknown",
+        })
+        rows.append(row_dict)
+    return rows
+
+
 def process_gse(gse_id, driver, super_series=None):
     if not super_series:
         super_series = gse_id
 
     url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse_id}"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soft_text = _fetch_soft_text(gse_id)
+    soft_blocked = _is_ncbi_blocked(soft_text)
+
+    html_response = requests.get(url, timeout=30)
+    html_blocked = _is_ncbi_blocked(html_response.text)
+    soup = BeautifulSoup(html_response.text, "html.parser") if not html_blocked else None
 
     desired_fields = [
         "Title", "Summary", "Overall design", "Contact name", "E-mail(s)",
@@ -158,22 +258,18 @@ def process_gse(gse_id, driver, super_series=None):
         "State/province", "Country"
     ]
 
-    data = {}
-    rows = soup.find_all('tr')
-    for row in rows:
-        cols = row.find_all('td')
-        if len(cols) == 2:
-            label = cols[0].get_text(strip=True)
-            value = cols[1].get_text(strip=True)
-            if label in desired_fields:
-                data[label] = value
+    data = _parse_metadata_from_soft(soft_text) if not soft_blocked else {}
+    if not data and soup is not None:
+        for row in soup.find_all('tr'):
+            cols = row.find_all('td')
+            if len(cols) == 2:
+                label = cols[0].get_text(strip=True)
+                value = cols[1].get_text(strip=True)
+                if label in desired_fields:
+                    data[label] = value
 
-    # SOFT parse
-    soft_url = f"{url}&format=soft"
-    soft_response = requests.get(soft_url)
-    soft_text = soft_response.text
-    platforms = set(re.findall(r"(GPL\d+)", soft_text))
-    samples = set(re.findall(r"(GSM\d+)", soft_text))
+    platforms = set(re.findall(r"(GPL\d+)", soft_text if not soft_blocked else ""))
+    samples = set(re.findall(r"(GSM\d+)", soft_text if not soft_blocked else ""))
 
     data.update({
         "Platforms": ", ".join(sorted(platforms)),
@@ -184,9 +280,33 @@ def process_gse(gse_id, driver, super_series=None):
 
     supp_data = []
 
+    soft_supp_files = supplementary_files_from_soft(soft_text) if not soft_blocked else []
+    soft_names = [name for name, _ in soft_supp_files]
+    needs_custom_xml = (
+        not soft_supp_files
+        or any(name.upper().endswith("_RAW.TAR") or name.upper().endswith("RAW.TAR") for name in soft_names)
+    )
+
+    if needs_custom_xml:
+        xml_rows = _fetch_custom_supp_files_xml(gse_id, data)
+        if xml_rows:
+            supp_data = xml_rows
+
+    if not supp_data and soft_supp_files:
+        for file_name, file_url in soft_supp_files:
+            parts = file_name.split(".")
+            file_type = parts[1] if len(parts) > 1 else "unknown"
+            row_dict = data.copy()
+            row_dict.update({
+                "Supplementary file": file_name,
+                "Size": "",
+                "File type/resource": file_type,
+            })
+            supp_data.append(row_dict)
+
     # Case 1: Selenium for "(custom)" button
-    custom_link_tag = soup.find("a", string="(custom)")
-    if custom_link_tag:
+    custom_link_tag = soup.find("a", string="(custom)") if soup is not None else None
+    if custom_link_tag and not supp_data:
         try:
             driver.get(url)
             wait = WebDriverWait(driver, 7)
@@ -228,7 +348,7 @@ def process_gse(gse_id, driver, super_series=None):
             supp_data.append(data)
 
     # Case 2: standard HTML parsing
-    if not supp_data:
+    if not supp_data and soup is not None:
         tables = soup.find_all('table')
         supp_table = None
         for table in tables[::-1]:
@@ -254,8 +374,9 @@ def process_gse(gse_id, driver, super_series=None):
                         "File type/resource": cells[3].get_text(strip=True),
                     })
                     supp_data.append(row_dict)
-        else:
-            supp_data.append(data)
+
+    if not supp_data:
+        supp_data.append(data)
 
     return supp_data
 
