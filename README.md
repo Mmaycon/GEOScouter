@@ -2,6 +2,10 @@
 
 GEOScouter helps you profile and compare public datasets on [GEO](https://www.ncbi.nlm.nih.gov/geo/) from an exported `gds_result.txt` search.
 
+## Full documentation
+
+See [doc/README.md](doc/README.md) for the pipeline guide, filtering, visualization, and design notes (Series Matrix files, GEO DataSets vs GEOScouter).
+
 ## Sync with GitHub
 
 Before editing or running the app, check that your local folder matches GitHub. Add this alias to `~/.zshrc` (once):

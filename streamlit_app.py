@@ -175,7 +175,17 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
         return
 
     series_files, _, _ = calculate_similarity_edges(df)
-    training_key = tuple(sorted(training))
+
+    with st.expander("Supplementary files in training GSE(s)", expanded=False):
+        for gse in sorted(training):
+            files = sorted(series_files.get(gse, set()))
+            st.markdown(f"**{gse}** — {len(files)} file(s)")
+            if files:
+                st.code("\n".join(files), language=None)
+            else:
+                st.caption("No supplementary filenames found for this GSE.")
+
+    training_key = (tuple(sorted(training)), min_support)
 
     if training_key != st.session_state.supervised_pattern_training_key:
         st.session_state.supervised_pattern_training_key = training_key
