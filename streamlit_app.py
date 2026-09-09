@@ -26,10 +26,12 @@ import plotly.express as px
 import streamlit as st
 
 from geoscouter.config import CACHE_FILES, GDS_INPUT_NAME, WORK_DIR
+from geoscouter.core.curation import build_curated_gse_table, gse_health_status
 from geoscouter.core.filters import (
     apply_series_filters,
-    filter_metadata_tables,
+    filter_gses_by_metadata,
     metadata_filter_options,
+    metadata_group_options,
 )
 from geoscouter.core.metadata import get_gse_metadata
 from geoscouter.core.pipeline import run_geo_pipeline
@@ -74,6 +76,11 @@ for key, default in {
     "list_of_metadata_dfs": None,
     "metadata_search_results": None,
     "metadata_matched_gses": None,
+    "gse_health_overrides": {},
+    "metadata_filter_groups": {},
+    "metadata_advanced_filters": {},
+    "curated_gse_df": None,
+    "metadata_fetch_scope_gses": [],
     "supervised_signature_mode": "training_gse",
     "supervised_manual_patterns_text": "",
     "supervised_training_gses": [],
@@ -86,6 +93,292 @@ for key, default in {
     "viz_show_network": False,
 }.items():
     st.session_state.setdefault(key, default)
+
+
+def _metadata_scope_gses() -> list[str]:
+    """GSEs for metadata fetch: comparison list first, else active working set."""
+    if st.session_state.gse_selection_list:
+        return sorted(
+            {
+                g.strip().upper()
+                for g in st.session_state.gse_selection_list
+                if g and str(g).strip()
+            }
+        )
+    active = st.session_state.df_active
+    if active is not None and not active.empty:
+        return sorted(active["Series"].dropna().unique())
+    return []
+
+
+def _metadata_curation_ui() -> None:
+    """Step 5: fetch GSM metadata, filter, curate health status, export catalog."""
+    scope_gses = _metadata_scope_gses()
+    scope_label = (
+        "step 4 comparison list"
+        if st.session_state.gse_selection_list
+        else "active working set (step 2)"
+    )
+    st.caption(
+        f"Metadata fetch scope: **{scope_label}** ({len(scope_gses)} GSE(s)). "
+        "Filter by cell type, organ/tissue, and disease, then curate healthy/cancer/other."
+    )
+    if scope_gses:
+        with st.expander("GSEs in metadata scope", expanded=False):
+            st.code("\n".join(scope_gses), language=None)
+    else:
+        st.warning("No GSEs in scope. Build a comparison list in step 4 or apply step 2 filters.")
+        return
+
+    if st.button("Fetch GEO sample metadata", type="primary"):
+        active = st.session_state.df_active
+        if active is None:
+            st.warning("No active dataset.")
+        else:
+            scope_df = apply_series_filters(active, gse_selection=scope_gses)
+            metadata_dir = os.path.join(dir_base, "metadata")
+            os.makedirs(metadata_dir, exist_ok=True)
+            st.session_state.list_of_metadata_dfs = get_gse_metadata(scope_df, metadata_dir)
+            st.session_state.metadata_fetch_scope_gses = scope_gses
+            st.session_state.gse_health_overrides = {}
+            st.session_state.metadata_matched_gses = None
+            st.session_state.curated_gse_df = None
+            st.rerun()
+
+    if not st.session_state.list_of_metadata_dfs:
+        st.info("Click **Fetch GEO sample metadata** to download GSM-level tables.")
+        return
+
+    group_options = metadata_group_options(st.session_state.list_of_metadata_dfs)
+    group_filters: dict[str, list[str]] = {}
+    st.markdown("#### Sample metadata filtering")
+    cols = st.columns(3)
+    for i, group in enumerate(["Cell type", "Organ / tissue", "Disease"]):
+        values = group_options.get(group, [])
+        with cols[i % 3]:
+            chosen = st.multiselect(
+                group,
+                options=values,
+                default=st.session_state.metadata_filter_groups.get(group, []),
+                key=f"meta_group_{group}",
+            )
+            if chosen:
+                group_filters[group] = chosen
+    st.session_state.metadata_filter_groups = group_filters
+
+    advanced_filters: dict[str, list[str]] = {}
+    with st.expander("Advanced per-field filters", expanded=False):
+        adv_options = metadata_filter_options(st.session_state.list_of_metadata_dfs)
+        if not adv_options:
+            st.caption("No additional metadata fields found.")
+        else:
+            adv_cols = st.columns(2)
+            for i, (field, values) in enumerate(sorted(adv_options.items())):
+                with adv_cols[i % 2]:
+                    chosen = st.multiselect(
+                        field.replace("_", " ").title(),
+                        options=values,
+                        default=st.session_state.metadata_advanced_filters.get(field, []),
+                        key=f"meta_adv_{field}",
+                    )
+                    if chosen:
+                        advanced_filters[field] = chosen
+    st.session_state.metadata_advanced_filters = advanced_filters
+
+    filter_col1, filter_col2 = st.columns(2)
+    with filter_col1:
+        if st.button("Apply metadata filters"):
+            if group_filters or advanced_filters:
+                matched = filter_gses_by_metadata(
+                    st.session_state.list_of_metadata_dfs,
+                    group_filters=group_filters,
+                    advanced_filters=advanced_filters,
+                )
+                st.session_state.metadata_matched_gses = matched
+                st.success(f"Metadata filters matched {len(matched)} GSE(s).")
+            else:
+                st.session_state.metadata_matched_gses = None
+                st.info("No metadata filters selected; showing all GSEs in scope.")
+    with filter_col2:
+        if st.button("Clear metadata filters"):
+            st.session_state.metadata_matched_gses = None
+            st.session_state.metadata_filter_groups = {}
+            st.session_state.metadata_advanced_filters = {}
+            st.rerun()
+
+    health_filter = st.multiselect(
+        "Show GSEs with health status",
+        options=["healthy", "cancer", "other"],
+        default=["healthy", "cancer", "other"],
+        help="Filter the curated catalog by health status.",
+    )
+
+    active = st.session_state.df_active
+    if active is None:
+        return
+
+    curated = build_curated_gse_table(
+        active,
+        st.session_state.list_of_metadata_dfs,
+        scope_gses,
+        health_overrides=st.session_state.gse_health_overrides,
+        metadata_matched_gses=st.session_state.metadata_matched_gses,
+        group_filters=group_filters,
+        advanced_filters=advanced_filters,
+        health_filter=health_filter or None,
+    )
+
+    st.markdown("#### Curated GSE catalog")
+    if curated.empty:
+        st.warning("No GSEs match the current filters.")
+        return
+
+    edit_df = curated.copy()
+    edited = st.data_editor(
+        edit_df,
+        column_config={
+            "GEO link": st.column_config.LinkColumn(
+                "GSE",
+                display_text=r"acc=(GSE\d+)",
+            ),
+            "GSE": None,
+            "Health_status": st.column_config.SelectboxColumn(
+                "Health status",
+                options=["healthy", "cancer", "other"],
+                required=True,
+            ),
+            "Health_status_source": st.column_config.TextColumn(disabled=True),
+        },
+        disabled=[
+            "Title",
+            "Unified_platform",
+            "Platform_title",
+            "Panel_size",
+            "num_samples",
+            "Matching_samples",
+            "Cell_types_found",
+            "Organs_found",
+            "Diseases_found",
+        ],
+        hide_index=True,
+        key="curated_gse_editor",
+        width="stretch",
+    )
+
+    series_level = active.drop_duplicates(subset=["Series"]).set_index("Series")
+    meta_by_gse = {
+        str(df["gse_id"].iloc[0]).strip().upper(): df
+        for df in st.session_state.list_of_metadata_dfs
+        if "gse_id" in df.columns and not df.empty
+    }
+    overrides = dict(st.session_state.gse_health_overrides)
+    for _, row in edited.iterrows():
+        gse = str(row["GSE"]).strip().upper()
+        edited_status = str(row["Health_status"]).strip().lower()
+        if gse in series_level.index:
+            auto_status, _ = gse_health_status(
+                series_level.loc[gse],
+                meta_by_gse.get(gse),
+                override=None,
+            )
+            if edited_status != auto_status:
+                overrides[gse] = edited_status
+            elif gse in overrides:
+                del overrides[gse]
+    st.session_state.gse_health_overrides = overrides
+
+    curated_final = build_curated_gse_table(
+        active,
+        st.session_state.list_of_metadata_dfs,
+        scope_gses,
+        health_overrides=overrides,
+        metadata_matched_gses=st.session_state.metadata_matched_gses,
+        group_filters=group_filters,
+        advanced_filters=advanced_filters,
+        health_filter=health_filter or None,
+    )
+    st.session_state.curated_gse_df = curated_final
+
+    exp_col1, exp_col2, exp_col3 = st.columns(3)
+    with exp_col1:
+        if st.button("Export curated catalog (CSV)", type="primary"):
+            out_path = os.path.join(dir_base, "curated_gse_catalog.csv")
+            curated_final.to_csv(out_path, index=False)
+            st.success(f"Saved {len(curated_final)} curated GSE(s).")
+            offer_download(out_path)
+    with exp_col2:
+        if st.button("Export curated catalog (Excel)"):
+            excel_out = os.path.join(dir_base, "curated_gse_catalog.xlsx")
+            curated_final.to_excel(excel_out, index=False)
+            st.success("Curated catalog workbook ready.")
+            offer_download(excel_out)
+    with exp_col3:
+        if st.button("Update comparison list from catalog"):
+            st.session_state.gse_selection_list = curated_final["GSE"].tolist()
+            st.success(f"Comparison list updated ({len(curated_final)} GSE(s)).")
+
+    with st.expander("View GSM samples for one GSE", expanded=False):
+        gse_options = [
+            str(df["gse_id"].iloc[0])
+            for df in st.session_state.list_of_metadata_dfs
+            if "gse_id" in df.columns
+        ]
+        selected_gse = st.selectbox("View samples for GSE", gse_options)
+        for df in st.session_state.list_of_metadata_dfs:
+            if str(df["gse_id"].iloc[0]) == selected_gse:
+                st.dataframe(df, width="stretch")
+                break
+
+    with st.expander("Keyword search across metadata", expanded=False):
+        keyword = st.text_input("Keyword search across metadata")
+        if st.button("Search metadata") and keyword:
+            found_gses, found_gsms, counts = set(), set(), {}
+            for df in st.session_state.list_of_metadata_dfs:
+                mask = df.apply(
+                    lambda col: col.astype(str).str.contains(keyword, case=False, na=False)
+                )
+                if mask.values.any():
+                    gse_id = df["gse_id"].iloc[0]
+                    matching = df.loc[mask.any(axis=1), "gsm_id"].tolist()
+                    found_gses.add(gse_id)
+                    found_gsms.update(matching)
+                    counts[gse_id] = len(matching)
+            st.session_state.metadata_search_results = {
+                "gse_vector": sorted(found_gses),
+                "gsm_vector": sorted(found_gsms),
+                "counts": counts,
+                "keyword": keyword,
+            }
+
+        if st.session_state.metadata_search_results:
+            res = st.session_state.metadata_search_results
+            st.info(
+                f"Keyword '{res['keyword']}': {len(res['gse_vector'])} GSEs, "
+                f"{len(res['gsm_vector'])} GSMs."
+            )
+            plot_df = pd.DataFrame(
+                list(res["counts"].items()), columns=["GSE", "GSM Count"]
+            ).sort_values("GSM Count", ascending=False)
+            st.plotly_chart(
+                px.bar(
+                    plot_df,
+                    x="GSE",
+                    y="GSM Count",
+                    title=f"Matches for '{res['keyword']}'",
+                ),
+                width="stretch",
+            )
+
+    if st.button("Export all fetched metadata to Excel"):
+        excel_out = os.path.join(dir_base, "metadata_GSE.xlsx")
+        used = set()
+        with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
+            for df in st.session_state.list_of_metadata_dfs:
+                gse_id = df["gse_id"].iloc[0]
+                sheet = sanitize_sheet_name(gse_id, used)
+                df.to_excel(writer, sheet_name=sheet, index=False)
+        st.success("Metadata workbook ready.")
+        offer_download(excel_out)
 
 
 def _reset_visualizations() -> None:
@@ -367,9 +660,13 @@ if st.button("Delete all cached outputs"):
     for key in [
         "df_combined", "df_active", "summary_df", "gse_df_filtered",
         "list_of_metadata_dfs", "metadata_search_results", "metadata_matched_gses",
+        "curated_gse_df", "metadata_fetch_scope_gses",
     ]:
         st.session_state[key] = None
     st.session_state["gse_selection_list"] = []
+    st.session_state["gse_health_overrides"] = {}
+    st.session_state["metadata_filter_groups"] = {}
+    st.session_state["metadata_advanced_filters"] = {}
     st.cache_data.clear()
     if deleted:
         st.success("Deleted: " + ", ".join(deleted))
@@ -476,61 +773,6 @@ if st.session_state.df_combined is not None:
     if active is not None:
         st.info(f"Working set: **{active['Series'].nunique()}** series.")
 
-    # Metadata fetch + upstream metadata filters
-    st.subheader("Sample metadata (optional)")
-    st.caption(
-        "Fetch GSM-level metadata to filter by assay, organism, tissue, library source, etc. "
-        "This step downloads SOFT files and can take several minutes."
-    )
-
-    meta_scope = st.radio(
-        "Metadata scope",
-        ["Active filtered series", "All scraped series"],
-        horizontal=True,
-    )
-
-    if st.button("Fetch GEO sample metadata"):
-        scope_df = active if meta_scope.startswith("Active") and active is not None else st.session_state.df_combined
-        if scope_df is None:
-            st.warning("No data to process.")
-        else:
-            metadata_dir = os.path.join(dir_base, "metadata")
-            os.makedirs(metadata_dir, exist_ok=True)
-            st.session_state.list_of_metadata_dfs = get_gse_metadata(scope_df, metadata_dir)
-
-    if st.session_state.list_of_metadata_dfs:
-        options = metadata_filter_options(st.session_state.list_of_metadata_dfs)
-        if not options:
-            st.warning("No standard metadata fields found in downloaded tables.")
-        else:
-            field_filters = {}
-            cols = st.columns(2)
-            for i, (field, values) in enumerate(sorted(options.items())):
-                with cols[i % 2]:
-                    chosen = st.multiselect(
-                        field.replace("_", " ").title(),
-                        options=values,
-                        key=f"meta_filter_{field}",
-                    )
-                    if chosen:
-                        field_filters[field] = chosen
-
-            if st.button("Apply metadata filters to working set"):
-                matched = filter_metadata_tables(
-                    st.session_state.list_of_metadata_dfs, field_filters
-                )
-                st.session_state.metadata_matched_gses = matched
-                if active is not None and matched:
-                    _reset_visualizations()
-                    st.session_state.df_active = active[
-                        active["Series"].isin({g.upper() for g in matched})
-                    ].copy()
-                    st.success(
-                        f"Metadata filters matched {len(matched)} GSEs; working set updated."
-                    )
-                elif not matched:
-                    st.warning("No GSE matched the selected metadata filters.")
-
 # --- 3. Visualize (once, on active set) ---
 if st.session_state.df_active is not None and not st.session_state.df_active.empty:
     st.header("3. Visualize datasets")
@@ -581,8 +823,8 @@ if st.session_state.df_active is not None:
         st.subheader("Build a comparison list")
         st.caption(
             "Use this list to restrict exports and downstream steps. "
-            "Scrape-level filters in step 2 already narrow the working set; "
-            "here you add GSEs by similarity or manual ID."
+            "Run **step 5** to fetch sample metadata, filter by cell/organ/disease, "
+            "and curate health status before final export."
         )
 
         with st.expander("About signature similarity", expanded=False):
@@ -663,71 +905,16 @@ if st.session_state.df_active is not None:
             st.success(f"Saved {df_out['Series'].nunique()} series.")
             offer_download(out_path)
 
-# --- 5. Metadata exploration ---
-st.header("5. Metadata analysis")
-if st.session_state.list_of_metadata_dfs:
-    gse_options = [df["gse_id"].iloc[0] for df in st.session_state.list_of_metadata_dfs]
-    selected_gse = st.selectbox("View samples for GSE", gse_options)
-    for df in st.session_state.list_of_metadata_dfs:
-        if df["gse_id"].iloc[0] == selected_gse:
-            st.dataframe(df, width="stretch")
-            break
+        if st.session_state.curated_gse_df is not None and not st.session_state.curated_gse_df.empty:
+            if st.button("Export curated catalog from step 5"):
+                out_path = os.path.join(dir_base, "curated_gse_catalog.csv")
+                st.session_state.curated_gse_df.to_csv(out_path, index=False)
+                st.success(f"Saved {len(st.session_state.curated_gse_df)} curated GSE(s).")
+                offer_download(out_path)
 
-    if st.button("Export all metadata to Excel"):
-        excel_out = os.path.join(dir_base, "metadata_GSE.xlsx")
-        used = set()
-        with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
-            for df in st.session_state.list_of_metadata_dfs:
-                gse_id = df["gse_id"].iloc[0]
-                sheet = sanitize_sheet_name(gse_id, used)
-                df.to_excel(writer, sheet_name=sheet, index=False)
-        st.success("Metadata workbook ready.")
-        offer_download(excel_out)
-
-    keyword = st.text_input("Keyword search across metadata")
-    if st.button("Search metadata") and keyword:
-        found_gses, found_gsms, counts = set(), set(), {}
-        for df in st.session_state.list_of_metadata_dfs:
-            mask = df.apply(
-                lambda col: col.astype(str).str.contains(keyword, case=False, na=False)
-            )
-            if mask.values.any():
-                gse_id = df["gse_id"].iloc[0]
-                matching = df.loc[mask.any(axis=1), "gsm_id"].tolist()
-                found_gses.add(gse_id)
-                found_gsms.update(matching)
-                counts[gse_id] = len(matching)
-        st.session_state.metadata_search_results = {
-            "gse_vector": sorted(found_gses),
-            "gsm_vector": sorted(found_gsms),
-            "counts": counts,
-            "keyword": keyword,
-        }
-
-    if st.session_state.metadata_search_results:
-        res = st.session_state.metadata_search_results
-        st.info(
-            f"Keyword '{res['keyword']}': {len(res['gse_vector'])} GSEs, "
-            f"{len(res['gsm_vector'])} GSMs."
-        )
-        plot_df = pd.DataFrame(
-            list(res["counts"].items()), columns=["GSE", "GSM Count"]
-        ).sort_values("GSM Count", ascending=False)
-        st.plotly_chart(
-            px.bar(plot_df, x="GSE", y="GSM Count", title=f"Matches for '{res['keyword']}'"),
-            width="stretch",
-        )
-        if st.button("Export keyword-filtered metadata"):
-            excel_out = os.path.join(dir_base, "metadata_filtered_by_word.xlsx")
-            used = set()
-            with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
-                for df in st.session_state.list_of_metadata_dfs:
-                    gse_id = df["gse_id"].iloc[0]
-                    if gse_id in res["gse_vector"]:
-                        sub = df[df["gsm_id"].isin(res["gsm_vector"])]
-                        if not sub.empty:
-                            sheet = sanitize_sheet_name(gse_id, used)
-                            sub.to_excel(writer, sheet_name=sheet, index=False)
-            offer_download(excel_out)
+# --- 5. Sample metadata curation ---
+st.header("5. Sample metadata filtering and curation")
+if st.session_state.df_active is not None:
+    _metadata_curation_ui()
 else:
-    st.info("Fetch metadata in step 2 to enable exploration here.")
+    st.info("Complete steps 1–2 and build a comparison list in step 4 to curate metadata here.")
