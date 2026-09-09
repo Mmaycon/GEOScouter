@@ -10,6 +10,7 @@ CACHE_FILES = [
     "geo_webscrap.csv",
     "gds_processed.csv",
     "filtered_geo_webscrap.csv",
+    "curated_gse_catalog.csv",
     "metadata_GSE.xlsx",
     "metadata_filtered_by_word.xlsx",
     "platform_cache.json",

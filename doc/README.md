@@ -30,7 +30,7 @@ flowchart LR
   csv["geo_webscrap.csv"]
   filter["Step 2: Filter datasets"]
   viz["Step 3-4: Visualize and compare"]
-  meta["Step 5: Metadata analysis"]
+  meta["Step 5: Metadata curation"]
 
   gds --> upload --> scrape --> csv --> filter --> viz --> meta
 ```
@@ -39,10 +39,10 @@ flowchart LR
 |-------|--------------|
 | Step 0 | Search GEO DataSets; export `gds_result.txt`. |
 | Step 1 | Upload file → **Run pipeline** → scrape GEO → write `geo_webscrap.csv` (cached under `/tmp/geoscouter/`). |
-| Step 2 | Filter by assay type, platform, sample count; optional GSM metadata fetch and filters. |
-| Step 3 | Snapshot plots, file-per-sample complexity, supplementary-file similarity networks. |
+| Step 2 | Filter by assay type, platform, and sample count (scrape-level only). |
+| Step 3 | Snapshot plots, file-per-sample complexity, supervised file-structure similarity network. |
 | Step 4 | Build a GSE comparison list; export filtered CSV. |
-| Step 5 | Explore and export GSM-level metadata tables (optional). |
+| Step 5 | Fetch GSM metadata, filter by cell/organ/disease, curate health status, export curated catalog. |
 
 ---
 
@@ -72,7 +72,7 @@ Open the URL Streamlit prints (usually http://localhost:8501).
 1. Upload `gds_result.txt` → **Run pipeline**
 2. **Apply scrape-level filters** (step 2)
 3. **Visualize datasets** (step 3) — define a supervised file-structure signature (training GSEs or manual file types)
-4. Optionally fetch sample metadata and export Excel (steps 2 and 5)
+4. Build a comparison list (step 4), then **curate metadata** (step 5) before final export
 
 ---
 
@@ -83,8 +83,9 @@ Open the URL Streamlit prints (usually http://localhost:8501).
 | Pipeline overview | [pipeline/README.md](pipeline/README.md) | — |
 | Step 0 — `gds_result.txt` input | [pipeline/01_gds_input.md](pipeline/01_gds_input.md) | [geoscouter/core/gds_parse.py](../geoscouter/core/gds_parse.py) |
 | Step 1 — web scraping | [pipeline/02_web_scraping.md](pipeline/02_web_scraping.md) | [geoscouter/core/pipeline.py](../geoscouter/core/pipeline.py), [tar_expand.py](../geoscouter/core/tar_expand.py) |
-| Step 2 — filtering | [filtering/README.md](filtering/README.md) | [filters.py](../geoscouter/core/filters.py), [platforms.py](../geoscouter/core/platforms.py), [metadata.py](../geoscouter/core/metadata.py) |
+| Step 2 — filtering | [filtering/README.md](filtering/README.md) | [filters.py](../geoscouter/core/filters.py), [platforms.py](../geoscouter/core/platforms.py) |
 | Steps 3–4 — visualization | [visualization/README.md](visualization/README.md) | [viz/](../geoscouter/viz/), [similarity.py](../geoscouter/core/similarity.py) |
+| Step 5 — metadata curation | [metadata/README.md](metadata/README.md) | [curation.py](../geoscouter/core/curation.py), [metadata.py](../geoscouter/core/metadata.py) |
 | Series Matrix files (design note) | [reference/series_matrix_files.md](reference/series_matrix_files.md) | — |
 | GEO DataSets vs GEOScouter | [reference/geodatasets_api_vs_geoscouter.md](reference/geodatasets_api_vs_geoscouter.md) | — |
 
