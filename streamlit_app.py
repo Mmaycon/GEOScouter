@@ -40,19 +40,18 @@ from geoscouter.core.platforms import (
     technology_filter_options,
 )
 from geoscouter.core.similarity import (
-    SIMILARITY_HELP,
-    calculate_reference_edges,
+    SUPERVISED_SIMILARITY_HELP,
     calculate_similarity_edges,
     discover_pattern_candidates,
+    manual_pattern_editor_df,
+    parse_manual_patterns,
+    score_supervised_candidates,
     signature_rules_from_dataframe,
 )
 from geoscouter.utils.io import offer_download, sanitize_sheet_name
 from geoscouter.utils.summary import build_series_summary, normalize_scrape_df
 from geoscouter.viz.complexity import file_per_sample_complexity
-from geoscouter.viz.network import (
-    file_similarity_network,
-    supervised_file_similarity_network,
-)
+from geoscouter.viz.network import supervised_file_similarity_network
 from geoscouter.viz.snapshot import dataset_snapshot_plots
 
 st.set_page_config(layout="wide", page_title="GEOScouter")
@@ -75,7 +74,8 @@ for key, default in {
     "list_of_metadata_dfs": None,
     "metadata_search_results": None,
     "metadata_matched_gses": None,
-    "reference_gse": None,
+    "supervised_signature_mode": "training_gse",
+    "supervised_manual_patterns_text": "",
     "supervised_training_gses": [],
     "supervised_pattern_training_key": None,
     "supervised_pattern_editor_df": None,
@@ -97,166 +97,226 @@ def _reset_visualizations() -> None:
 
 
 def _file_similarity_network_ui(df: pd.DataFrame) -> None:
-    """Network type selector and similarity plots for step 3."""
+    """Supervised signature network for step 3."""
     series_opts = sorted(df["Series"].dropna().unique())
-    network_mode = st.radio(
-        "Network type",
-        options=["Pairwise / reference", "Supervised structure"],
-        horizontal=True,
-        help="Pairwise: Jaccard on exact filenames (optional single reference GSE). "
-        "Supervised: learn a file-structure signature from multiple training GSEs.",
-    )
-
-    if network_mode == "Pairwise / reference":
-        idx = 0
-        if st.session_state.reference_gse and st.session_state.reference_gse in series_opts:
-            idx = 1 + series_opts.index(st.session_state.reference_gse)
-        ref_choice = st.selectbox(
-            "Reference GSE (optional)",
-            options=[None, *series_opts],
-            index=idx,
-            key="reference_gse_select",
-            format_func=lambda x: "(none)" if x is None else x,
-            help="Compare every other GSE's supplementary filenames to this layout. "
-            "The network still shows all pairwise links as background context.",
-        )
-        st.session_state.reference_gse = (
-            str(ref_choice).strip().upper() if ref_choice else None
-        )
-        file_similarity_network(df, reference_gse=st.session_state.reference_gse)
-        return
-
-    valid_training = [
-        g for g in st.session_state.supervised_training_gses if g in series_opts
-    ]
-    st.session_state.supervised_training_gses = valid_training
-
-    col_a, col_b = st.columns([3, 1])
-    with col_a:
-        training_choice = st.multiselect(
-            "Training GSEs (define the file structure signature)",
-            options=series_opts,
-            default=valid_training,
-            key="supervised_training_select",
-            help="Select GSEs whose supplementary file layout should teach the signature.",
-        )
-        st.session_state.supervised_training_gses = [
-            str(g).strip().upper() for g in training_choice
-        ]
-    with col_b:
-        if st.button(
-            "Use comparison list",
-            help="Copy GSE IDs from step 4 comparison list into training GSEs.",
-        ):
-            from_list = sorted(
-                {
-                    g.strip().upper()
-                    for g in st.session_state.gse_selection_list
-                    if g and g.strip().upper() in series_opts
-                }
-            )
-            st.session_state.supervised_training_gses = from_list
-            st.session_state["supervised_training_select"] = from_list
-            st.rerun()
-
-    min_support = st.slider(
-        "Minimum pattern support across training GSEs",
-        0.5,
-        1.0,
-        0.8,
-        0.05,
-        help="Used when discovering patterns: a rule is pre-selected if it appears in "
-        "at least this fraction of training GSEs. You can still toggle any rule manually.",
-    )
-
-    training = st.session_state.supervised_training_gses
-    if not training:
-        st.info("Select at least one training GSE to discover file-structure patterns.")
-        return
-
     series_files, _, _ = calculate_similarity_edges(df)
 
-    with st.expander("Supplementary files in training GSE(s)", expanded=False):
-        for gse in sorted(training):
-            files = sorted(series_files.get(gse, set()))
-            st.markdown(f"**{gse}** — {len(files)} file(s)")
-            if files:
-                st.code("\n".join(files), language=None)
-            else:
-                st.caption("No supplementary filenames found for this GSE.")
-
-    training_key = (tuple(sorted(training)), min_support)
-
-    if training_key != st.session_state.supervised_pattern_training_key:
-        st.session_state.supervised_pattern_training_key = training_key
-        st.session_state.supervised_pattern_editor_df = discover_pattern_candidates(
-            series_files, training, min_support_ratio=min_support
-        )
-        st.session_state.supervised_applied_rules = []
-        st.session_state.supervised_signature_applied = False
-
-    st.markdown("#### Review signature patterns")
-    st.caption(
-        "**Auto-detected** shows the full normalized filename (sample IDs replaced). "
-        "**Match pattern** is the structural file-type token used for scoring "
-        "(e.g. `transcripts.parquet.gz`, `cell_matrix.mtx.gz`). "
-        "Edit or uncheck **Include** as needed."
+    signature_mode = st.radio(
+        "Signature source",
+        options=["From training GSE(s)", "Manual file types"],
+        horizontal=True,
+        index=0 if st.session_state.supervised_signature_mode == "training_gse" else 1,
+        help="Learn patterns from training GSEs or type expected file-type tokens directly.",
+    )
+    st.session_state.supervised_signature_mode = (
+        "training_gse"
+        if signature_mode == "From training GSE(s)"
+        else "manual"
     )
 
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        if st.button("Rediscover patterns"):
+    training: list[str] = []
+    editor_df = st.session_state.supervised_pattern_editor_df
+    apply_signature = False
+
+    if st.session_state.supervised_signature_mode == "manual":
+        st.caption(
+            "Enter one file-type token per line (e.g. `transcripts.parquet.gz`, "
+            "`xenium.txt.gz`). No training GSE is required."
+        )
+        manual_text = st.text_area(
+            "Expected file types",
+            value=st.session_state.supervised_manual_patterns_text,
+            height=120,
+            placeholder="transcripts.parquet.gz\nxenium.txt.gz\ncell_matrix.mtx.gz",
+            key="supervised_manual_patterns_input",
+        )
+        st.session_state.supervised_manual_patterns_text = manual_text
+
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
+        with btn_col1:
+            build_manual = st.button("Build signature from file types")
+        with btn_col2:
+            apply_signature = st.button("Apply signature & show network", type="primary")
+        with btn_col3:
+            if st.button("Reset manual signature"):
+                st.session_state.supervised_manual_patterns_text = ""
+                st.session_state.supervised_pattern_editor_df = None
+                st.session_state.supervised_applied_rules = []
+                st.session_state.supervised_signature_applied = False
+                st.rerun()
+
+        if build_manual:
+            patterns = parse_manual_patterns(manual_text)
+            if not patterns:
+                st.error("Enter at least one file-type token.")
+            else:
+                st.session_state.supervised_pattern_editor_df = manual_pattern_editor_df(
+                    patterns
+                )
+                st.session_state.supervised_applied_rules = []
+                st.session_state.supervised_signature_applied = False
+                st.rerun()
+
+        editor_df = st.session_state.supervised_pattern_editor_df
+        if editor_df is None or editor_df.empty:
+            st.info("Enter file types above, then click **Build signature from file types**.")
+            return
+
+        st.markdown("#### Review signature patterns")
+        edited_df = st.data_editor(
+            editor_df,
+            column_config={
+                "Include": st.column_config.CheckboxColumn(
+                    help="Include this rule when scoring other GSEs.",
+                ),
+                "Match pattern": st.column_config.TextColumn(
+                    help="Structural file-type token searched within supplementary filenames.",
+                    required=True,
+                ),
+                "Weight": st.column_config.NumberColumn(
+                    min_value=0.0,
+                    max_value=1.0,
+                    step=0.05,
+                    format="%.3f",
+                ),
+                "rule_id": None,
+            },
+            hide_index=True,
+            key="supervised_manual_pattern_editor",
+            width="stretch",
+        )
+        st.session_state.supervised_pattern_editor_df = edited_df
+
+    else:
+        valid_training = [
+            g for g in st.session_state.supervised_training_gses if g in series_opts
+        ]
+        st.session_state.supervised_training_gses = valid_training
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            training_choice = st.multiselect(
+                "Training GSEs (define the file structure signature)",
+                options=series_opts,
+                default=valid_training,
+                key="supervised_training_select",
+                help="Select GSEs whose supplementary file layout should teach the signature.",
+            )
+            st.session_state.supervised_training_gses = [
+                str(g).strip().upper() for g in training_choice
+            ]
+        with col_b:
+            if st.button(
+                "Use comparison list",
+                help="Copy GSE IDs from step 4 comparison list into training GSEs.",
+            ):
+                from_list = sorted(
+                    {
+                        g.strip().upper()
+                        for g in st.session_state.gse_selection_list
+                        if g and g.strip().upper() in series_opts
+                    }
+                )
+                st.session_state.supervised_training_gses = from_list
+                st.session_state["supervised_training_select"] = from_list
+                st.rerun()
+
+        min_support = st.slider(
+            "Minimum pattern support across training GSEs",
+            0.5,
+            1.0,
+            0.8,
+            0.05,
+            help="Used when discovering patterns: a rule is pre-selected if it appears in "
+            "at least this fraction of training GSEs. You can still toggle any rule manually.",
+        )
+
+        training = st.session_state.supervised_training_gses
+        if not training:
+            st.info("Select at least one training GSE to discover file-structure patterns.")
+            return
+
+        with st.expander("Supplementary files in training GSE(s)", expanded=False):
+            for gse in sorted(training):
+                files = sorted(series_files.get(gse, set()))
+                st.markdown(f"**{gse}** — {len(files)} file(s)")
+                if files:
+                    st.code("\n".join(files), language=None)
+                else:
+                    st.caption("No supplementary filenames found for this GSE.")
+
+        training_key = (tuple(sorted(training)), min_support)
+
+        if training_key != st.session_state.supervised_pattern_training_key:
+            st.session_state.supervised_pattern_training_key = training_key
             st.session_state.supervised_pattern_editor_df = discover_pattern_candidates(
                 series_files, training, min_support_ratio=min_support
             )
             st.session_state.supervised_applied_rules = []
             st.session_state.supervised_signature_applied = False
-            st.rerun()
-    with btn_col2:
-        apply_signature = st.button("Apply signature & show network", type="primary")
 
-    editor_df = st.session_state.supervised_pattern_editor_df
-    if editor_df is None or editor_df.empty:
-        st.warning("No supplementary filenames found for the selected training GSEs.")
-        return
+        st.markdown("#### Review signature patterns")
+        st.caption(
+            "**Auto-detected** shows the full normalized filename (sample IDs replaced). "
+            "**Match pattern** is the structural file-type token used for scoring "
+            "(e.g. `transcripts.parquet.gz`, `cell_matrix.mtx.gz`). "
+            "Duplicate match patterns are merged. Edit or uncheck **Include** as needed."
+        )
 
-    edited_df = st.data_editor(
-        editor_df,
-        column_config={
-            "Include": st.column_config.CheckboxColumn(
-                help="Include this rule when scoring other GSEs.",
-            ),
-            "Match pattern": st.column_config.TextColumn(
-                help="Structural file-type token searched within supplementary filenames.",
-                required=True,
-            ),
-            "Auto-detected": st.column_config.TextColumn(
-                disabled=True,
-                help="Full normalized filename pattern (sample/study IDs replaced).",
-            ),
-            "Example filenames": st.column_config.TextColumn(
-                disabled=True,
-            ),
-            "Training GSEs": st.column_config.TextColumn(
-                disabled=True,
-            ),
-            "Weight": st.column_config.NumberColumn(
-                min_value=0.0,
-                max_value=1.0,
-                step=0.05,
-                format="%.3f",
-            ),
-            "rule_id": None,
-        },
-        disabled=["Auto-detected", "Example filenames", "Training GSEs"],
-        hide_index=True,
-        key="supervised_pattern_data_editor",
-        width="stretch",
-    )
-    st.session_state.supervised_pattern_editor_df = edited_df
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("Rediscover patterns"):
+                st.session_state.supervised_pattern_editor_df = discover_pattern_candidates(
+                    series_files, training, min_support_ratio=min_support
+                )
+                st.session_state.supervised_applied_rules = []
+                st.session_state.supervised_signature_applied = False
+                st.rerun()
+        with btn_col2:
+            apply_signature = st.button("Apply signature & show network", type="primary")
+
+        editor_df = st.session_state.supervised_pattern_editor_df
+        if editor_df is None or editor_df.empty:
+            st.warning("No supplementary filenames found for the selected training GSEs.")
+            return
+
+        edited_df = st.data_editor(
+            editor_df,
+            column_config={
+                "Include": st.column_config.CheckboxColumn(
+                    help="Include this rule when scoring other GSEs.",
+                ),
+                "Match pattern": st.column_config.TextColumn(
+                    help="Structural file-type token searched within supplementary filenames.",
+                    required=True,
+                ),
+                "Auto-detected": st.column_config.TextColumn(
+                    disabled=True,
+                    help="Full normalized filename pattern (sample/study IDs replaced).",
+                ),
+                "Example filenames": st.column_config.TextColumn(
+                    disabled=True,
+                ),
+                "Training GSEs": st.column_config.TextColumn(
+                    disabled=True,
+                ),
+                "Weight": st.column_config.NumberColumn(
+                    min_value=0.0,
+                    max_value=1.0,
+                    step=0.05,
+                    format="%.3f",
+                ),
+                "rule_id": None,
+            },
+            disabled=["Auto-detected", "Example filenames", "Training GSEs"],
+            hide_index=True,
+            key="supervised_pattern_data_editor",
+            width="stretch",
+        )
+        st.session_state.supervised_pattern_editor_df = edited_df
 
     if apply_signature:
-        rules = signature_rules_from_dataframe(edited_df)
+        rules = signature_rules_from_dataframe(st.session_state.supervised_pattern_editor_df)
         if not rules:
             st.error("Enable at least one pattern with a non-empty Match pattern.")
         else:
@@ -267,10 +327,16 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
         st.session_state.supervised_signature_applied
         and st.session_state.supervised_applied_rules
     ):
+        training = (
+            st.session_state.supervised_training_gses
+            if st.session_state.supervised_signature_mode == "training_gse"
+            else []
+        )
         supervised_file_similarity_network(
             df,
             training_gses=training,
             rules=st.session_state.supervised_applied_rules,
+            signature_mode=st.session_state.supervised_signature_mode,
         )
     else:
         st.info("Edit patterns above, then click **Apply signature & show network**.")
@@ -470,8 +536,7 @@ if st.session_state.df_active is not None and not st.session_state.df_active.emp
     st.header("3. Visualize datasets")
     st.caption(
         "Plots reflect the current working set from step 2. "
-        "Click **Similarity network**, then choose **Pairwise / reference** or "
-        "**Supervised structure**."
+        "Click **Similarity network** to define a supervised file-structure signature."
     )
 
     c0, c1, c2, c3 = st.columns(4)
@@ -520,51 +585,54 @@ if st.session_state.df_active is not None:
             "here you add GSEs by similarity or manual ID."
         )
 
-        with st.expander("About similarity scores", expanded=False):
-            st.markdown(SIMILARITY_HELP)
+        with st.expander("About signature similarity", expanded=False):
+            st.markdown(SUPERVISED_SIMILARITY_HELP)
 
         col1, col2 = st.columns(2)
         with col1:
             sim_threshold = st.slider(
-                "Minimum Jaccard similarity",
-                0.0, 1.0, 0.8, 0.05,
-                help="Used by both bulk-add buttons below.",
+                "Minimum signature similarity",
+                0.0,
+                1.0,
+                0.8,
+                0.05,
+                help="Used when bulk-adding GSEs that match the step 3 signature.",
             )
-            if st.button(
-                "Add GSEs linked at similarity threshold (all pairs)",
-                help="Adds every GSE that appears in any pairwise edge at or above the threshold.",
+            if (
+                st.session_state.supervised_signature_applied
+                and st.session_state.supervised_applied_rules
             ):
-                _, edges, _ = calculate_similarity_edges(
-                    st.session_state.df_active
-                )
-                added = {s for e in edges if e[2] >= sim_threshold for s in e[:2]}
-                before = len(set(st.session_state.gse_selection_list))
-                st.session_state.gse_selection_list.extend(list(added))
-                after = len(set(st.session_state.gse_selection_list))
-                st.success(f"Added {after - before} GSEs ({len(added)} pairs at ≥{sim_threshold}).")
-            ref_gse = st.session_state.get("reference_gse")
-            if ref_gse:
                 if st.button(
-                    f"Add GSEs similar to reference ({ref_gse}, ≥ threshold)",
-                    help="Adds non-reference GSEs whose supplementary filename similarity "
-                    "to the reference GSE meets the threshold (step 3 reference mode).",
+                    "Add GSEs matching signature (≥ threshold)",
+                    help="Adds GSEs whose supervised signature score meets the threshold.",
                 ):
                     series_files, _, _ = calculate_similarity_edges(
                         st.session_state.df_active
                     )
-                    ref_edges = calculate_reference_edges(series_files, ref_gse)
-                    added = {e[1] for e in ref_edges if e[2] >= sim_threshold}
+                    training = (
+                        st.session_state.supervised_training_gses
+                        if st.session_state.supervised_signature_mode == "training_gse"
+                        else []
+                    )
+                    _, scores = score_supervised_candidates(
+                        series_files,
+                        training,
+                        st.session_state.supervised_applied_rules,
+                    )
+                    added = {
+                        gse for gse, score in scores.items() if score >= sim_threshold
+                    }
                     before = len(set(st.session_state.gse_selection_list))
                     st.session_state.gse_selection_list.extend(sorted(added))
                     after = len(set(st.session_state.gse_selection_list))
                     st.success(
-                        f"Added {after - before} GSEs similar to {ref_gse} "
+                        f"Added {after - before} GSEs matching the signature "
                         f"(≥{sim_threshold}, {len(added)} matched)."
                     )
             else:
                 st.caption(
-                    "Set a reference GSE in step 3 to enable "
-                    "\"Add GSEs similar to reference\"."
+                    "Apply a signature in step 3 (**Apply signature & show network**) "
+                    "to enable bulk add by signature similarity."
                 )
         with col2:
             manual_gse = st.text_input("Manual GSE ID", placeholder="GSE12345")

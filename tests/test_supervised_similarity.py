@@ -11,13 +11,20 @@ from geoscouter.core.similarity import (
     build_structure_signature,
     calculate_supervised_edges,
     calculate_supervised_edges_from_rules,
+    dedupe_pattern_editor_df,
     default_match_for_filename,
     discover_pattern_candidates,
     filename_to_pattern,
+    geo_series_url,
+    manual_pattern_editor_df,
+    parse_manual_patterns,
     rule_matches_filenames,
+    rules_from_manual_patterns,
+    score_supervised_candidates,
     series_pattern_sets,
     signature_rules_from_dataframe,
     structural_match_for_filename,
+    supervised_comparison_table_from_rules,
     supervised_similarity_from_rules,
     supervised_similarity_score,
 )
@@ -210,6 +217,86 @@ class TestPatternRules(unittest.TestCase):
         )
         self.assertEqual(training, {"GSE1"})
         self.assertTrue(any(e[1] == "GSE2" for e in edges))
+
+    def test_dedupe_pattern_editor_df_merges_same_match_pattern(self):
+        df = pd.DataFrame(
+            [
+                {
+                    "Include": False,
+                    "Match pattern": "matrix.mtx.gz",
+                    "Auto-detected": "auto_a",
+                    "Example filenames": "file_a",
+                    "Training GSEs": "1/2",
+                    "Weight": 0.5,
+                    "rule_id": "r1",
+                },
+                {
+                    "Include": True,
+                    "Match pattern": "matrix.mtx.gz",
+                    "Auto-detected": "auto_b",
+                    "Example filenames": "file_b",
+                    "Training GSEs": "2/2",
+                    "Weight": 1.0,
+                    "rule_id": "r2",
+                },
+            ]
+        )
+        out = dedupe_pattern_editor_df(df)
+        self.assertEqual(len(out), 1)
+        self.assertTrue(out.iloc[0]["Include"])
+        self.assertIn("auto_a", out.iloc[0]["Auto-detected"])
+        self.assertIn("auto_b", out.iloc[0]["Auto-detected"])
+
+    def test_rules_from_manual_patterns(self):
+        rules = rules_from_manual_patterns(
+            ["transcripts.parquet.gz", "xenium.txt.gz", "transcripts.parquet.gz"]
+        )
+        self.assertEqual(len(rules), 2)
+        patterns = {r["match_pattern"] for r in rules}
+        self.assertEqual(patterns, {"transcripts.parquet.gz", "xenium.txt.gz"})
+
+    def test_parse_manual_patterns(self):
+        parsed = parse_manual_patterns(
+            "transcripts.parquet.gz\nxenium.txt.gz, matrix.mtx.gz"
+        )
+        self.assertEqual(
+            parsed,
+            ["transcripts.parquet.gz", "xenium.txt.gz", "matrix.mtx.gz"],
+        )
+
+    def test_score_all_gses_when_no_training(self):
+        series_files = _series_files(
+            {
+                "GSE1": ["GSM1.xenium.txt.gz"],
+                "GSE2": ["GSM2.xenium.txt.gz", "GSM2_transcripts.csv.gz"],
+            }
+        )
+        rules = rules_from_manual_patterns(["xenium.txt.gz", "transcripts.csv.gz"])
+        training, scores = score_supervised_candidates(series_files, [], rules)
+        self.assertEqual(training, set())
+        self.assertEqual(scores["GSE1"], 0.5)
+        self.assertEqual(scores["GSE2"], 1.0)
+
+    def test_geo_series_url(self):
+        self.assertEqual(
+            geo_series_url("gse325935"),
+            "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE325935",
+        )
+
+    def test_comparison_table_includes_geo_link(self):
+        series_files = _series_files(
+            {
+                "GSE1": ["GSM1.xenium.txt.gz"],
+                "GSE2": ["GSM2.xenium.txt.gz"],
+            }
+        )
+        rules = rules_from_manual_patterns(["xenium.txt.gz"])
+        table = supervised_comparison_table_from_rules(series_files, [], rules)
+        self.assertIn("GEO link", table.columns)
+        self.assertEqual(
+            table.loc[table["GSE"] == "GSE2", "GEO link"].iloc[0],
+            geo_series_url("GSE2"),
+        )
 
 
 class TestStructureSignature(unittest.TestCase):

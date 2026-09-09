@@ -71,7 +71,7 @@ Open the URL Streamlit prints (usually http://localhost:8501).
 
 1. Upload `gds_result.txt` → **Run pipeline**
 2. **Apply scrape-level filters** (step 2)
-3. **Visualize datasets** (step 3) — choose pairwise/reference or supervised structure network
+3. **Visualize datasets** (step 3) — define a supervised file-structure signature (training GSEs or manual file types)
 4. Optionally fetch sample metadata and export Excel (steps 2 and 5)
 
 ---
