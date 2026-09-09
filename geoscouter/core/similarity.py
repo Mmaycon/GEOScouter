@@ -17,6 +17,28 @@ _GSE_RE = re.compile(r"GSE\d+", re.IGNORECASE)
 _SRR_RE = re.compile(r"SRR\d+", re.IGNORECASE)
 _SRX_RE = re.compile(r"SRX\d+", re.IGNORECASE)
 _LONG_NUM_RE = re.compile(r"\d{6,}")
+_PLACEHOLDER_PREFIX_RE = re.compile(r"^(\{(sample|series|run|id)\}[_\.]*)+")
+_GENERIC_STEMS = frozenset(
+    {
+        "matrix",
+        "parquet",
+        "fastq",
+        "fasta",
+        "csv",
+        "tsv",
+        "txt",
+        "h5",
+        "mtx",
+        "json",
+        "gz",
+        "tar",
+        "bz2",
+        "zip",
+        "data",
+        "file",
+        "counts",
+    }
+)
 
 SIMILARITY_HELP = """
 **What is the similarity score?**
@@ -54,11 +76,12 @@ SUPERVISED_SIMILARITY_HELP = """
 **Supervised file structure signature**
 
 Pick one or more **training GSEs** whose supplementary file layout you want to use as a template.
-The app proposes **match patterns** from their filenames (full names and structural suffixes such as
-`transcripts.csv.gz`, `matrix.mtx.gz`, `xenium.txt.gz`).
+The app proposes **match patterns** from their filenames: structural file-type tokens such as
+`transcripts.parquet.gz`, `cell_matrix.mtx.gz`, or `xenium.txt.gz` (sample and study IDs are stripped).
 
-Review the pattern table: **include** the rules you want, and **edit the match text** to keep only
-the part that defines your technology layout.
+Review the pattern table: **include** the rules you want, and **edit the match text** if needed.
+**Auto-detected** shows the full normalized filename; **Match pattern** is the structural token
+used for scoring.
 
 Every **non-training** GSE is scored with **weighted coverage** of your included rules.
 A rule matches when any supplementary filename **contains** the match text (case-insensitive).
@@ -126,10 +149,101 @@ def suffix_candidates_from_pattern(pattern: str, min_len: int = 8) -> list[str]:
     return sorted(ordered, key=len)
 
 
+def _strip_placeholder_prefix(pattern: str) -> str:
+    """Remove leading sample/run placeholders and separators."""
+    return _PLACEHOLDER_PREFIX_RE.sub("", str(pattern).strip().lower())
+
+
+def _stem_before_extensions(segment: str) -> str:
+    """Primary name token before compression or compound extensions."""
+    base = str(segment).strip().lower()
+    while base.endswith((".gz", ".bz2", ".zip")):
+        if base.endswith(".gz"):
+            base = base[:-3]
+        elif base.endswith(".bz2"):
+            base = base[:-4]
+        else:
+            base = base[:-4]
+    return base.split(".")[0] if "." in base else base
+
+
+def _is_generic_stem(stem: str) -> bool:
+    """True when a token looks like a bare extension or numeric sample token."""
+    token = str(stem).strip().lower()
+    if not token:
+        return True
+    if token.isdigit():
+        return True
+    return token in _GENERIC_STEMS
+
+
+def _is_generic_only_segment(segment: str) -> bool:
+    return _is_generic_stem(_stem_before_extensions(segment))
+
+
+def _longest_non_placeholder_suffix(pattern: str) -> str:
+    """Fallback: longest suffix without placeholders that is not generic-only."""
+    valid: list[str] = []
+    for candidate in suffix_candidates_from_pattern(pattern):
+        if "{" in candidate:
+            continue
+        parts = candidate.split("_")
+        dotted = [part for part in parts if "." in part]
+        if not dotted:
+            continue
+        if not _is_generic_only_segment(dotted[-1]):
+            valid.append(candidate)
+    return valid[-1] if valid else ""
+
+
+def structural_match_for_pattern(pattern: str) -> str:
+    """Extract a structural file-type token from a normalized filename pattern."""
+    normalized = str(pattern).strip().lower()
+    if not normalized:
+        return ""
+
+    remainder = _strip_placeholder_prefix(normalized)
+    if not remainder:
+        remainder = normalized
+
+    parts = remainder.split("_")
+    dotted_indices = [idx for idx, part in enumerate(parts) if "." in part]
+    if dotted_indices:
+        idx = dotted_indices[-1]
+        match = parts[idx]
+
+        def _leading_token(text: str) -> str:
+            return text.split("_")[0].split(".")[0]
+
+        while idx > 0 and (
+            _is_generic_only_segment(match) or len(_leading_token(match)) < 4
+        ):
+            idx -= 1
+            match = f"{parts[idx]}_{match}"
+        if (
+            match != remainder
+            and remainder.endswith(f"_{match}")
+            and not _is_generic_stem(_stem_before_extensions(remainder))
+            and len(remainder) - len(match) <= len(_leading_token(remainder)) + 1
+        ):
+            return remainder
+        return match
+
+    fallback = _longest_non_placeholder_suffix(normalized)
+    return fallback or remainder or normalized
+
+
+def structural_match_for_filename(filename: str) -> str:
+    """Structural file-type token for supervised matching (sample/study IDs stripped)."""
+    pattern = filename_to_pattern(filename)
+    if not pattern:
+        return ""
+    return structural_match_for_pattern(pattern)
+
+
 def default_match_for_filename(filename: str) -> str:
-    """Shortest structural suffix for a supplementary filename."""
-    cands = suffix_candidates_from_pattern(filename_to_pattern(filename))
-    return cands[0] if cands else filename_to_pattern(filename)
+    """Default structural match token for a supplementary filename."""
+    return structural_match_for_filename(filename)
 
 
 def _extension_variants(text: str) -> set[str]:
@@ -193,7 +307,7 @@ def discover_pattern_candidates(
     min_support_ratio: float = 0.8,
 ) -> pd.DataFrame:
     """
-    Propose editable signature rules grouped by default structural suffix.
+    Propose editable signature rules grouped by normalized filename pattern.
 
     Returns a DataFrame with columns:
     Include, Match pattern, Auto-detected, Example filenames, Training GSEs, Weight
@@ -223,13 +337,13 @@ def discover_pattern_candidates(
             if not auto or auto in seen_auto:
                 continue
             seen_auto.add(auto)
-            default = default_match_for_filename(fname)
-            if not default:
+            structural = structural_match_for_filename(fname)
+            if not structural:
                 continue
             bucket = groups.setdefault(
                 auto,
                 {
-                    "match_pattern": default,
+                    "match_pattern": structural,
                     "auto_patterns": set(),
                     "examples": [],
                     "gses": set(),
@@ -245,11 +359,11 @@ def discover_pattern_candidates(
         sorted(groups.items(), key=lambda x: (-len(x[1]["gses"]), x[0]))
     ):
         gse_count = len(data["gses"])
-        default = data["match_pattern"]
+        structural = data["match_pattern"]
         rows.append(
             {
                 "Include": gse_count >= min_support,
-                "Match pattern": default,
+                "Match pattern": structural,
                 "Auto-detected": auto,
                 "Example filenames": "; ".join(data["examples"]),
                 "Training GSEs": f"{gse_count}/{n}",

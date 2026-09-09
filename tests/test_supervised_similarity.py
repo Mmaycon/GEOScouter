@@ -17,6 +17,7 @@ from geoscouter.core.similarity import (
     rule_matches_filenames,
     series_pattern_sets,
     signature_rules_from_dataframe,
+    structural_match_for_filename,
     supervised_similarity_from_rules,
     supervised_similarity_score,
 )
@@ -54,6 +55,34 @@ class TestFilenameToPattern(unittest.TestCase):
             "transcripts.csv.gz",
         )
 
+    def test_structural_match_keeps_file_type_not_extension(self):
+        self.assertEqual(
+            structural_match_for_filename(
+                "GSM1_0013717_asthma_healthy_transcripts.parquet.gz"
+            ),
+            "transcripts.parquet.gz",
+        )
+        self.assertNotEqual(
+            structural_match_for_filename(
+                "GSM1_0013717_asthma_healthy_transcripts.parquet.gz"
+            ),
+            "parquet.gz",
+        )
+
+    def test_structural_match_strips_study_tokens(self):
+        match = structural_match_for_filename(
+            "GSM1_0013717_asthma_healthy_cell_matrix.mtx.gz"
+        )
+        self.assertEqual(match, "cell_matrix.mtx.gz")
+        self.assertNotIn("asthma", match)
+        self.assertNotIn("healthy", match)
+
+    def test_structural_match_keeps_compound_matrix_name(self):
+        self.assertEqual(
+            structural_match_for_filename("GSM123.filtered_feature_bc_matrix.h5"),
+            "filtered_feature_bc_matrix.h5",
+        )
+
 
 class TestPatternRules(unittest.TestCase):
     def test_rule_matches_by_suffix(self):
@@ -84,6 +113,7 @@ class TestPatternRules(unittest.TestCase):
         df = discover_pattern_candidates(series_files, ["GSE1"], 0.8)
         self.assertGreaterEqual(len(df), 4)
         auto_patterns = set(df["Auto-detected"])
+        match_patterns = set(df["Match pattern"])
         self.assertIn(
             filename_to_pattern("GSM1_cell_matrix.mtx.gz"),
             auto_patterns,
@@ -92,6 +122,8 @@ class TestPatternRules(unittest.TestCase):
             filename_to_pattern("GSM1_raw_matrix.mtx.gz"),
             auto_patterns,
         )
+        self.assertIn("cell_matrix.mtx.gz", match_patterns)
+        self.assertIn("raw_matrix.mtx.gz", match_patterns)
 
     def test_similar_gse_scores_high_with_extension_variants(self):
         series_files = _series_files(
@@ -137,7 +169,8 @@ class TestPatternRules(unittest.TestCase):
         df = discover_pattern_candidates(series_files, ["GSE1", "GSE2"], 0.5)
         matches = set(df["Match pattern"])
         self.assertIn("transcripts.csv.gz", matches)
-        self.assertIn("matrix.mtx.gz", matches)
+        self.assertIn("cell_matrix.mtx.gz", matches)
+        self.assertNotIn("matrix.mtx.gz", matches)
         self.assertIn("xenium.txt.gz", matches)
 
     def test_supervised_from_rules(self):
