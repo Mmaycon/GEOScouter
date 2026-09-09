@@ -18,36 +18,30 @@ Available after scrape-level filters produce a non-empty `df_active`.
 
 **Show file-per-sample complexity** — how many supplementary files per sample (series-level heuristic) ([complexity.py](../../geoscouter/viz/complexity.py)).
 
-### Supplementary file similarity network
+### Supervised file-structure signature network
 
-Two modes (radio **Network type**):
+Choose a **signature source**:
 
-#### Pairwise / reference
+| Mode | What you do |
+|------|-------------|
+| **From training GSE(s)** | Select one or more training GSEs; review deduplicated match patterns; apply signature |
+| **Manual file types** | Type expected file-type tokens (one per line); no training GSE required |
 
-- Builds edges with **Jaccard similarity** on full supplementary filenames across series.
-- Optional **Reference GSE**: star layout comparing every other series to one chosen layout.
-- Threshold slider controls which edges are drawn.
+Then **Apply signature & show network** — scores other GSEs by weighted rule coverage. The comparison table links each GSE to its [GEO accession page](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE325935).
 
-See `SIMILARITY_HELP` in [similarity.py](../../geoscouter/core/similarity.py) for score interpretation.
+See `SUPERVISED_SIMILARITY_HELP` in [similarity.py](../../geoscouter/core/similarity.py) for score interpretation.
 
-#### Supervised structure
-
-1. Select one or more **training GSEs** with a file layout you want to match.
-2. Review/edit **match patterns** derived from their filenames (e.g. `transcripts.csv.gz`, `matrix.mtx.gz`, `experiment.xenium.txt.gz`).
-3. **Apply signature & show network** — scores other GSEs by weighted rule coverage (not plain Jaccard).
-
-Useful when technologies share structural suffixes but not identical prefixes.
-
-Plots: [network.py](../../geoscouter/viz/network.py) (`file_similarity_network`, `supervised_file_similarity_network`).
+Plot: [network.py](../../geoscouter/viz/network.py) (`supervised_file_similarity_network`).
 
 ---
 
 ## Step 4 — Select specific GSEs
 
-**Build a comparison list** — multiselect GSEs from the active set into `gse_selection_list`.
+**Build a comparison list** — add GSEs manually or bulk-add by **signature similarity** (requires an applied signature from step 3).
 
 | Action | Result |
 |--------|--------|
+| Add GSEs matching signature | Adds GSEs whose supervised score meets the threshold |
 | View selection table | Subset of `df_active` for chosen series |
 | Download filtered CSV | Writes `filtered_geo_webscrap.csv` to `WORK_DIR` |
 
@@ -57,14 +51,14 @@ Plots: [network.py](../../geoscouter/viz/network.py) (`file_similarity_network`,
 
 Networks use the **`File type/resource`** column when present (full filename on `dev`); otherwise **`Supplementary file`**.
 
-Filename normalization for patterns: [similarity.py](../../geoscouter/core/similarity.py) (`normalize_filename`, `filename_to_pattern`).
+Filename normalization for patterns: [similarity.py](../../geoscouter/core/similarity.py) (`normalize_filename`, `filename_to_pattern`, `structural_match_for_filename`).
 
 ---
 
 ## Session behavior
 
-- Changing filters or reference GSE resets hidden plot flags until you click show buttons again.
-- Supervised pattern editor state is kept in session (`supervised_pattern_editor_df`, `supervised_applied_rules`).
+- Changing filters resets hidden plot flags until you click show buttons again.
+- Supervised pattern editor state is kept in session (`supervised_pattern_editor_df`, `supervised_applied_rules`, `supervised_signature_mode`).
 
 ---
 

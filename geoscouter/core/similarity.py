@@ -11,6 +11,7 @@ import pandas as pd
 
 FILE_RESOURCE_COL = "File type/resource"
 SIGNATURE_NODE = "File structure signature"
+GEO_SERIES_URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse}"
 
 _GSM_RE = re.compile(r"GSM\d+", re.IGNORECASE)
 _GSE_RE = re.compile(r"GSE\d+", re.IGNORECASE)
@@ -372,7 +373,136 @@ def discover_pattern_candidates(
             }
         )
 
+    return dedupe_pattern_editor_df(pd.DataFrame(rows))
+
+
+def geo_series_url(gse: str) -> str:
+    """NCBI GEO series accession page URL."""
+    acc = str(gse).strip().upper()
+    if not acc:
+        return ""
+    return GEO_SERIES_URL.format(gse=acc)
+
+
+def _training_gse_fraction(label: str) -> float:
+    """Parse '2/3' style Training GSEs column to a fraction."""
+    text = str(label).strip()
+    if "/" not in text:
+        return 0.0
+    num, den = text.split("/", 1)
+    try:
+        n = float(num.strip())
+        d = float(den.strip())
+        return n / d if d else 0.0
+    except ValueError:
+        return 0.0
+
+
+def dedupe_pattern_editor_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Merge pattern rows that share the same Match pattern (case-insensitive)."""
+    if df is None or df.empty or "Match pattern" not in df.columns:
+        return df
+
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+
+    for _, row in df.iterrows():
+        match = str(row.get("Match pattern", "")).strip()
+        if not match:
+            continue
+        key = match.lower()
+        if key not in merged:
+            order.append(key)
+            merged[key] = {
+                "Include": bool(row.get("Include", False)),
+                "Match pattern": match,
+                "auto_detected": [],
+                "examples": [],
+                "training_label": str(row.get("Training GSEs", "")),
+                "weight": float(row.get("Weight", 1.0)),
+            }
+        bucket = merged[key]
+        bucket["Include"] = bucket["Include"] or bool(row.get("Include", False))
+        auto = str(row.get("Auto-detected", "")).strip()
+        if auto:
+            bucket["auto_detected"].extend(
+                part.strip() for part in auto.split(";") if part.strip()
+            )
+        examples = str(row.get("Example filenames", "")).strip()
+        if examples:
+            bucket["examples"].extend(
+                part.strip() for part in examples.split(";") if part.strip()
+            )
+        label = str(row.get("Training GSEs", "")).strip()
+        if _training_gse_fraction(label) > _training_gse_fraction(bucket["training_label"]):
+            bucket["training_label"] = label
+            try:
+                bucket["weight"] = float(row.get("Weight", bucket["weight"]))
+            except (TypeError, ValueError):
+                pass
+
+    rows = []
+    for idx, key in enumerate(order):
+        data = merged[key]
+        auto_unique = list(dict.fromkeys(data["auto_detected"]))[:5]
+        example_unique = list(dict.fromkeys(data["examples"]))[:5]
+        match = data["Match pattern"]
+        rows.append(
+            {
+                "Include": data["Include"],
+                "Match pattern": match,
+                "Auto-detected": "; ".join(auto_unique),
+                "Example filenames": "; ".join(example_unique),
+                "Training GSEs": data["training_label"],
+                "Weight": data["weight"],
+                "rule_id": f"rule_{idx}_{match[:40]}",
+            }
+        )
+
+    if not rows:
+        return df.iloc[0:0].copy()
     return pd.DataFrame(rows)
+
+
+def parse_manual_patterns(text: str) -> list[str]:
+    """Split manual pattern input on newlines and commas."""
+    patterns: list[str] = []
+    seen: set[str] = set()
+    for line in str(text).replace(",", "\n").splitlines():
+        pat = line.strip()
+        if not pat:
+            continue
+        key = pat.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        patterns.append(pat)
+    return patterns
+
+
+def manual_pattern_editor_df(patterns: list[str]) -> pd.DataFrame:
+    """Build a minimal editable pattern table from manual file-type tokens."""
+    rows = []
+    for idx, pat in enumerate(patterns):
+        rows.append(
+            {
+                "Include": True,
+                "Match pattern": pat,
+                "Weight": 1.0,
+                "rule_id": f"manual_{idx}_{pat[:40]}",
+            }
+        )
+    if not rows:
+        return pd.DataFrame(
+            columns=["Include", "Match pattern", "Weight", "rule_id"]
+        )
+    return pd.DataFrame(rows)
+
+
+def rules_from_manual_patterns(patterns: list[str]) -> list[dict]:
+    """Convert manual pattern strings to signature rules (deduped, equal weight)."""
+    unique = parse_manual_patterns("\n".join(str(p) for p in patterns))
+    return signature_rules_from_dataframe(manual_pattern_editor_df(unique))
 
 
 def signature_rules_from_dataframe(rules_df: pd.DataFrame) -> list[dict]:
@@ -475,6 +605,7 @@ def supervised_comparison_table_from_rules(
         rows.append(
             {
                 "GSE": gse,
+                "GEO link": geo_series_url(gse),
                 "Similarity to signature": score,
                 "Matching rules": ", ".join(matched) if matched else "",
                 "Missing rules": ", ".join(missing) if missing else "",
@@ -485,6 +616,7 @@ def supervised_comparison_table_from_rules(
         return pd.DataFrame(
             columns=[
                 "GSE",
+                "GEO link",
                 "Similarity to signature",
                 "Matching rules",
                 "Missing rules",
