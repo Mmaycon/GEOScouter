@@ -65,6 +65,60 @@ class TestPatternRules(unittest.TestCase):
         self.assertTrue(rule_matches_filenames("xenium.txt.gz", files))
         self.assertFalse(rule_matches_filenames("matrix.mtx.gz", files))
 
+    def test_rule_matches_extension_variant(self):
+        files = {"GSM9_0013717_asthma_healthy_transcripts.csv"}
+        self.assertTrue(rule_matches_filenames("transcripts.csv.gz", files))
+        self.assertTrue(rule_matches_filenames("transcripts.csv", files))
+
+    def test_discover_keeps_distinct_matrix_types(self):
+        series_files = _series_files(
+            {
+                "GSE1": [
+                    "GSM1_cell_matrix.mtx.gz",
+                    "GSM1_raw_matrix.mtx.gz",
+                    "GSM1_transcripts.csv.gz",
+                    "GSM1.xenium.txt.gz",
+                ],
+            }
+        )
+        df = discover_pattern_candidates(series_files, ["GSE1"], 0.8)
+        self.assertGreaterEqual(len(df), 4)
+        auto_patterns = set(df["Auto-detected"])
+        self.assertIn(
+            filename_to_pattern("GSM1_cell_matrix.mtx.gz"),
+            auto_patterns,
+        )
+        self.assertIn(
+            filename_to_pattern("GSM1_raw_matrix.mtx.gz"),
+            auto_patterns,
+        )
+
+    def test_similar_gse_scores_high_with_extension_variants(self):
+        series_files = _series_files(
+            {
+                "GSE1": [
+                    "GSM1_cell_matrix.mtx.gz",
+                    "GSM1_raw_matrix.mtx.gz",
+                    "GSM1_transcripts.csv.gz",
+                    "GSM1.xenium.txt.gz",
+                ],
+                "GSE2": [
+                    "GSM9_cell_matrix.mtx.gz",
+                    "GSM9_raw_matrix.mtx.gz",
+                    "GSM9_transcripts.csv",
+                    "GSM9.xenium.txt.gz",
+                ],
+            }
+        )
+        rules_df = discover_pattern_candidates(series_files, ["GSE1"], 0.8)
+        rules = signature_rules_from_dataframe(rules_df)
+        score, matched, missing = supervised_similarity_from_rules(
+            rules, series_files["GSE2"]
+        )
+        self.assertGreaterEqual(score, 0.99)
+        self.assertEqual(missing, [])
+        self.assertGreaterEqual(len(matched), 4)
+
     def test_discover_groups_xenium_suffixes(self):
         series_files = _series_files(
             {

@@ -132,14 +132,43 @@ def default_match_for_filename(filename: str) -> str:
     return cands[0] if cands else filename_to_pattern(filename)
 
 
+def _extension_variants(text: str) -> set[str]:
+    """Return lowercase match strings including optional .gz stripping."""
+    base = str(text).strip().lower()
+    if not base:
+        return set()
+    variants = {base}
+    if base.endswith(".gz"):
+        variants.add(base[:-3])
+    elif "." in base:
+        variants.add(f"{base}.gz")
+    return variants
+
+
+def _text_matches_needle(needle: str, hay: str) -> bool:
+    """True when needle matches hay exactly or as a substring, with .gz equivalence."""
+    if not needle or not hay:
+        return False
+    for needle_v in _extension_variants(needle):
+        if hay == needle_v or needle_v in hay:
+            return True
+        for hay_v in _extension_variants(hay):
+            if hay_v == needle_v or needle_v in hay_v:
+                return True
+    return False
+
+
 def rule_matches_filenames(match_pattern: str, filenames: set[str]) -> bool:
     """True when any filename contains the match text (normalized, case-insensitive)."""
     needle = str(match_pattern).strip().lower()
     if not needle:
         return False
     for fname in filenames:
-        hay = filename_to_pattern(fname)
-        if hay == needle or needle in hay:
+        hay_pattern = filename_to_pattern(fname)
+        hay_raw = normalize_filename(fname).lower()
+        if _text_matches_needle(needle, hay_pattern) or _text_matches_needle(
+            needle, hay_raw
+        ):
             return True
     return False
 
@@ -188,16 +217,19 @@ def discover_pattern_candidates(
     groups: dict[str, dict] = {}
 
     for gse in training:
-        seen_defaults: set[str] = set()
+        seen_auto: set[str] = set()
         for fname in series_files[gse]:
             auto = filename_to_pattern(fname)
-            default = default_match_for_filename(fname)
-            if not default or default in seen_defaults:
+            if not auto or auto in seen_auto:
                 continue
-            seen_defaults.add(default)
+            seen_auto.add(auto)
+            default = default_match_for_filename(fname)
+            if not default:
+                continue
             bucket = groups.setdefault(
-                default,
+                auto,
                 {
+                    "match_pattern": default,
                     "auto_patterns": set(),
                     "examples": [],
                     "gses": set(),
@@ -209,11 +241,11 @@ def discover_pattern_candidates(
             bucket["gses"].add(gse)
 
     rows = []
-    for idx, (default, data) in enumerate(
+    for idx, (auto, data) in enumerate(
         sorted(groups.items(), key=lambda x: (-len(x[1]["gses"]), x[0]))
     ):
         gse_count = len(data["gses"])
-        auto = max(data["auto_patterns"], key=len)
+        default = data["match_pattern"]
         rows.append(
             {
                 "Include": gse_count >= min_support,
@@ -222,7 +254,7 @@ def discover_pattern_candidates(
                 "Example filenames": "; ".join(data["examples"]),
                 "Training GSEs": f"{gse_count}/{n}",
                 "Weight": round(gse_count / n, 3),
-                "rule_id": f"rule_{idx}_{default[:40]}",
+                "rule_id": f"rule_{idx}_{auto[:40]}",
             }
         )
 
