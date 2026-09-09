@@ -197,8 +197,10 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
 
     st.markdown("#### Review signature patterns")
     st.caption(
-        "Edit **Match pattern** to keep only the structural part you care about "
-        "(e.g. `transcripts.csv.gz`). Uncheck **Include** to drop a pattern from the signature."
+        "**Auto-detected** shows the full normalized filename (sample IDs replaced). "
+        "**Match pattern** is the structural file-type token used for scoring "
+        "(e.g. `transcripts.parquet.gz`, `cell_matrix.mtx.gz`). "
+        "Edit or uncheck **Include** as needed."
     )
 
     btn_col1, btn_col2 = st.columns(2)
@@ -225,12 +227,12 @@ def _file_similarity_network_ui(df: pd.DataFrame) -> None:
                 help="Include this rule when scoring other GSEs.",
             ),
             "Match pattern": st.column_config.TextColumn(
-                help="Text searched within supplementary filenames (case-insensitive).",
+                help="Structural file-type token searched within supplementary filenames.",
                 required=True,
             ),
             "Auto-detected": st.column_config.TextColumn(
                 disabled=True,
-                help="Full auto-normalized filename pattern from training data.",
+                help="Full normalized filename pattern (sample/study IDs replaced).",
             ),
             "Example filenames": st.column_config.TextColumn(
                 disabled=True,
