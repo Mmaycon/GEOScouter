@@ -31,13 +31,29 @@ Example input: [data/input/gds_result.txt](data/input/gds_result.txt).
 
 ## Before you open a PR
 
-Run the test suite:
+Run the test suite (same checks as CI):
 
 ```bash
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-If you change behavior in `geoscouter/core/` or library code under `geoscouter/`, **add or update tests** in `tests/`.
+If you change behavior in `geoscouter/core/` or library code under `geoscouter/`, **add or update tests** in `tests/` when reasonable.
+
+## Continuous integration
+
+On every pull request to **`dev`**, GitHub Actions runs the **`tests`** workflow on Ubuntu: install dependencies, run the command above, then verify `import geoscouter` and `import streamlit_app`. See the [Actions tab](https://github.com/Mmaycon/GEOScouter/actions) for logs.
+
+## After you open a PR
+
+1. Wait for the **tests** check to finish (green is good).
+2. A maintainer reviews the diff.
+3. If merged, your changes land on **`dev`**.
+
+Small fixes do not need a linked issue; larger work benefits from discussing first.
+
+## Issues and ideas
+
+Use the [issue chooser](https://github.com/Mmaycon/GEOScouter/issues/new/choose) (template **Ideas, bugs, or help**) or open a **blank issue**. Prefix the title with `[Step N]` if you know which part of the app — optional. A short paragraph is enough.
 
 ## Where to change code
 
@@ -53,8 +69,8 @@ UI wiring lives in [streamlit_app.py](streamlit_app.py); prefer putting reusable
 
 ## Proposing changes
 
-- For **non-trivial** work, open a [GitHub Issue](https://github.com/Mmaycon/GEOScouter/issues/new) first. Mention the **step (1–5)** in the title or description.
-- Link the issue in your PR.
+- For **non-trivial** work, an issue first helps — but informal notes are welcome.
+- Link an issue in your PR when you have one.
 - Avoid unrelated refactors or large formatting-only diffs.
 
 ## Conduct and transparency
