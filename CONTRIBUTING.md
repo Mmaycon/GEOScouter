@@ -2,21 +2,62 @@
 
 Thank you for helping improve GEOScouter. This document covers the essentials; full project docs are in [README.md](README.md) and [doc/README.md](doc/README.md).
 
-## Branch workflow
+## Branch workflow (fork → feature branch → PR)
 
-- **`dev`** is the integration branch (latest features after review).
-- Create a **feature branch from `dev`**, open a **pull request into `dev`**, and delete your branch after merge.
-- **`main`** is updated by the maintainer for **releases** only — please do not PR directly to `main` unless asked.
+Contributors work from a **fork**. You do **not** need push access to `Mmaycon/GEOScouter`. The maintainer **reviews and merges**; do not push directly to the upstream repo.
+
+| Repository | Role |
+|------------|------|
+| **`Mmaycon/GEOScouter`** (upstream) | Canonical project. Target branch for PRs: **`dev`**. **`main`** is release-only. |
+| **Your fork** (`YOUR_USER/GEOScouter`) | Where you push feature branches. |
+
+**Rules**
+
+- Open pull requests **into `dev`** on `Mmaycon/GEOScouter` — **not** into `main`.
+- One topic per PR (one feature, fix, or doc).
+- Delete your feature branch on the fork after merge (optional but tidy).
+
+### First-time setup
+
+1. On GitHub: **Fork** [Mmaycon/GEOScouter](https://github.com/Mmaycon/GEOScouter) to your account.
+2. Clone **your fork** (replace `YOUR_USER`):
+
+```bash
+git clone https://github.com/YOUR_USER/GEOScouter.git
+cd GEOScouter
+git remote add upstream https://github.com/Mmaycon/GEOScouter.git
+git fetch upstream
+git checkout -b dev upstream/dev   # track upstream dev locally
+```
+
+### Every contribution
 
 ```bash
 git checkout dev
-git pull origin dev
-git checkout -b feature/your-short-description
+git pull upstream dev              # sync with Mmaycon/GEOScouter dev
+git checkout -b feature/short-name # new branch from dev
 # … edit, commit …
-git push -u origin feature/your-short-description
+git push -u origin feature/short-name   # origin = your fork
 ```
 
-Keep each PR focused on **one feature or fix**.
+3. On GitHub: **New pull request**
+   - **base repository:** `Mmaycon/GEOScouter`, **base:** `dev`
+   - **head repository:** `YOUR_USER/GEOScouter`, **compare:** `feature/short-name`
+4. Fill in the PR template, link an issue if you have one (e.g. `Fixes #3`), and wait for CI **tests** + maintainer review.
+
+If GitHub shows “compare across forks,” choose your fork as the head and **`dev`** as the base.
+
+### Syncing when `dev` moves ahead
+
+```bash
+git checkout dev
+git pull upstream dev
+git checkout feature/short-name
+git merge dev   # or: git rebase dev
+git push origin feature/short-name
+```
+
+Use the **Update branch** button on the PR if GitHub offers it.
 
 ## Local setup
 
