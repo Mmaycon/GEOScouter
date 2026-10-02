@@ -1,0 +1,34 @@
+name: Ideas, bugs, or help
+description: Share an idea, bug report, or question. A few sentences is enough; blank issues are also fine.
+title: "[Optional step] Short title"
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve GEOScouter. Only the main description is required.
+        Prefer opening a **feature branch → PR to `dev`** if you already have a fix (see CONTRIBUTING.md).
+  - type: dropdown
+    id: app_area
+    attributes:
+      label: Which part of the app? (optional)
+      options:
+        - Step 1 — Data scraping
+        - Step 2 — Filter datasets
+        - Step 3 — Visualize
+        - Step 4 — Select GSEs
+        - Step 5 — Metadata and curation
+        - Not sure
+        - Docs / other
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like to change, or what went wrong?
+      placeholder: Describe in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context (optional)
+      placeholder: GSE ID, steps to reproduce, screenshot — whatever you have.
