@@ -1,0 +1,80 @@
+
+1. Complex interaction of tumor-derived factors instructs the niche specific phenotypes of tumor-associated macrophages (CROP-Seq, in vivo LGP pool)
+(Submitter supplied) Despite the importance of tumor-associated macrophages (TAMs) in modulating anti-tumor immunity, the molecular determinants of their functional phenotypes remain elusive. Through a large-scale CRISPR screen, we discovered that tumor-derived lactic acid, PGE2, and GM-CSF collaboratively shape the highly conserved but mutually exclusive TAM phenotypes: MHC-II+ and angiogenic TAMs. Mechanistically, the dichotomous nature of these two phenotypes is driven by the antagonistic interactions between lactic acid/PGE2 and GM-CSF. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL24247 2 Samples
+FTP download: GEO (CSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE269nnn/GSE269026/
+Series		Accession: GSE269026	ID: 200269026
+
+2. Complex interaction of tumor-derived factors instructs the spatially distinct phenotypes of tumor-associated macrophages [scRNA-Seq]
+(Submitter supplied) Despite the importance of tumor-associated macrophages (TAMs) in modulating anti-tumor immunity, the molecular determinants of their functional phenotypes remain elusive. Through a large-scale CRISPR screen, we discovered that tumor-derived lactic acid, PGE2, and GM-CSF collaboratively shape the highly conserved but mutually exclusive TAM phenotypes: MHC-II+ and angiogenic TAMs. Mechanistically, the dichotomous nature of these two phenotypes is driven by the antagonistic interactions between lactic acid/PGE2 and GM-CSF. more...
+Organism:	Mus musculus
+Type:		Expression profiling by high throughput sequencing
+Platform: GPL24247 2 Samples
+FTP download: GEO (CSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE237nnn/GSE237849/
+Series		Accession: GSE237849	ID: 200237849
+
+3. Complex interaction of tumor-derived factors instructs the niche specific phenotypes of tumor-associated macrophages [CROP-Seq, in vitro and in vivo pool]
+(Submitter supplied) Despite the importance of tumor-associated macrophages (TAMs) in modulating anti-tumor immunity, the molecular determinants of their functional phenotypes remain elusive. Through a large-scale CRISPR screen, we discovered that tumor-derived lactic acid, PGE2, and GM-CSF collaboratively shape the highly conserved but mutually exclusive TAM phenotypes: MHC-II+ and angiogenic TAMs. Mechanistically, the dichotomous nature of these two phenotypes is driven by the antagonistic interactions between lactic acid/PGE2 and GM-CSF. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL24247 4 Samples
+FTP download: GEO (CSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE237nnn/GSE237782/
+Series		Accession: GSE237782	ID: 200237782
+
+4. KRAS G12C inhibition combined with CD47 and immune checkpoint blockage overcomes intrinsic resistance to concomitant KRAS G12C and immune checkpoint inhibitor therapy
+(Submitter supplied) Although KRAS G12C inhibitors have altered the treatment strategy of patients with KRAS G12C mutant lung cancer, their efficacy is insufficient to eliminate tumors. Here, we identified that inhibition of mutant KRAS promotes escape from macrophage phagocytosis by upregulating the expression of ‘don’t eat me’ signal proteins, including CD47. CD47 was induced by the binding of FOXA1 to the super-enhancer of CD47. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL34290 2 Samples
+FTP download: GEO (CSV, H5, JSON, PNG) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE291nnn/GSE291687/
+Series		Accession: GSE291687	ID: 200291687
+
+5. DDX54 downregulation enhances anti-PD1 therapy in immune-desert lung tumors with high tumor mutational burden
+(Submitter supplied) High tumor mutational burden (TMB) is a predictive biomarker for the responsiveness of cancer to immune checkpoint inhibitor therapy that indicates whether immune cells can sufficiently recognize cancer cells as non-self. However, about 30% of all cancers from The Cancer Genome Atlas are classified as immune-desert tumors lacking T cell infiltration despite high TMB. Since the underlying mechanism of these immune-desert tumors has yet to be unraveled, there is a pressing need to transform such immune-desert tumors into immune-inflamed tumors and thereby enhance their responsiveness to anti-PD1 therapy. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 4 Samples
+FTP download: GEO (CSV, MTX, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE285nnn/GSE285341/
+Series		Accession: GSE285341	ID: 200285341
+
+6. Spatial control of m6A deposition on enhancer and promoter RNAs through co-acetylation of METTL3 and H3K27 on chromatin [CUT&Tag]
+(Submitter supplied) Interaction between the m6A methyltransferase METTL3 and METTL14 is critical for METTL3 to deposit m6A on various types of RNAs. It is still intriguing whether there is spatial control of m6A deposition on different types of RNAs. Here, through genome-wide CRISPR/Cas9 screening, we find H3K27ac acetylase p300-mediated METTL3 acetylation suppresses the binding of METTL3 on H3K27ac-marked chromatin by inhibiting its interaction with METTL14. more...
+Organism:	Homo sapiens
+Type:		Genome binding/occupancy profiling by high throughput sequencing
+Platform: GPL34633 8 Samples
+FTP download: GEO (BW, NARROWPEAK) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE285nnn/GSE285332/
+Series		Accession: GSE285332	ID: 200285332
+
+7. Spatial control of m6A deposition on enhancer and promoter RNAs through co-acetylation of METTL3 and H3K27 on chromatin [RNA-seq]
+(Submitter supplied) Interaction between the m6A methyltransferase METTL3 and METTL14 is critical for METTL3 to deposit m6A on various types of RNAs. It is still intriguing whether there is spatial control of m6A deposition on different types of RNAs. Here, through genome-wide CRISPR/Cas9 screening, we find H3K27ac acetylase p300-mediated METTL3 acetylation suppresses the binding of METTL3 on H3K27ac-marked chromatin by inhibiting its interaction with METTL14. more...
+Organism:	Homo sapiens
+Type:		Expression profiling by high throughput sequencing
+Platform: GPL30209 6 Samples
+FTP download: GEO (TXT) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE285nnn/GSE285328/
+Series		Accession: GSE285328	ID: 200285328
+
+8. Spatial control of m6A deposition on enhancer and promoter RNAs through co-acetylation of METTL3 and H3K27 on chromatin [caRNA-seq]
+(Submitter supplied) Interaction between the m6A methyltransferase METTL3 and METTL14 is critical for METTL3 to deposit m6A on various types of RNAs. It is still intriguing whether there is spatial control of m6A deposition on different types of RNAs. Here, through genome-wide CRISPR/Cas9 screening, we find H3K27ac acetylase p300-mediated METTL3 acetylation suppresses the binding of METTL3 on H3K27ac-marked chromatin by inhibiting its interaction with METTL14. more...
+Organism:	Homo sapiens
+Type:		Other; Non-coding RNA profiling by high throughput sequencing
+Platform: GPL30209 6 Samples
+FTP download: GEO (TXT) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE285nnn/GSE285327/
+Series		Accession: GSE285327	ID: 200285327
+
+9. Spatial control of m6A deposition on enhancer and promoter RNAs through co-acetylation of METTL3 and H3K27 on chromatin
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Homo sapiens
+Type:		Expression profiling by high throughput sequencing; Other; Non-coding RNA profiling by high throughput sequencing; Genome binding/occupancy profiling by high throughput sequencing; Methylation profiling by high throughput sequencing
+Platforms: GPL24676 GPL30209 GPL34633 26 Samples
+FTP download: GEO (BW, CSV, NARROWPEAK) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE272nnn/GSE272469/
+Series		Accession: GSE272469	ID: 200272469
+
+10. Spatial control of m6A deposition on enhancer and promoter RNAs through co-acetylation of METTL3 and H3K27 on chromatin [GLORI]
+(Submitter supplied) Interaction between the m6A methyltransferase METTL3 and METTL14 is critical for METTL3 to deposit m6A on various types of RNAs. It is still intriguing whether there is spatial control of m6A deposition on different types of RNAs. Here, through genome-wide CRISPR/Cas9 screening based on a bimolecular fluorescence complementation (BIFC) reporter, we find the H3K27ac acetylase p300 and PAK2 inhibit the interaction between METTL3 and METTL14. more...
+Organism:	Homo sapiens
+Type:		Other; Methylation profiling by high throughput sequencing
+Platform: GPL34633 4 Samples
+FTP download: GEO (CSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE272nnn/GSE272467/
+Series		Accession: GSE272467	ID: 200272467
