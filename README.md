@@ -2,6 +2,12 @@
 
 GEOScouter helps you profile and compare public datasets on [GEO](https://www.ncbi.nlm.nih.gov/geo/) from an exported `gds_result.txt` search.
 
+## Use the deployed app
+
+**[Open GEOScouter on Streamlit Cloud →](https://geoscouter.streamlit.app/)**
+
+No local setup required — upload your GEO `gds_result.txt` and run the pipeline in the browser.
+
 ## Full documentation
 
 See [doc/README.md](doc/README.md) for the pipeline guide, filtering, visualization, and design notes (Series Matrix files, GEO DataSets vs GEOScouter).
@@ -100,6 +106,10 @@ legacy/app/          # previous monolithic scripts (reference)
 ```
 
 ## Deploy on Streamlit Community Cloud
+
+The public app is live at **[https://geoscouter.streamlit.app/](https://geoscouter.streamlit.app/)** (deployed from the `dev` branch).
+
+To redeploy or fork your own instance:
 
 1. Push the `dev` branch to GitHub (see below)
 2. Go to [share.streamlit.io](https://share.streamlit.io)
