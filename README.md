@@ -6,6 +6,8 @@ GEOScouter helps you profile and compare public datasets on [GEO](https://www.nc
 
 See [doc/README.md](doc/README.md) for the pipeline guide, filtering, visualization, and design notes (Series Matrix files, GEO DataSets vs GEOScouter).
 
+Hackathon provenance (KIDS25 Team 17): [archive/KIDS25-Team17/PROVENANCE.md](archive/KIDS25-Team17/PROVENANCE.md).
+
 ## Sync with GitHub
 
 Before editing or running the app, check that your local folder matches GitHub. Add this alias to `~/.zshrc` (once):
