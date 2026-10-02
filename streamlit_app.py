@@ -20,6 +20,7 @@ except Exception as e:
 
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 import pandas as pd
 import plotly.express as px
@@ -56,7 +57,41 @@ from geoscouter.viz.complexity import file_per_sample_complexity
 from geoscouter.viz.network import supervised_file_similarity_network
 from geoscouter.viz.snapshot import dataset_snapshot_plots
 
+_GITHUB = "https://github.com/Mmaycon/GEOScouter"
+_ISSUE_TEMPLATE = "contribution.yml"
+
+
+def _issue_url(step: int | None = None) -> str:
+    base = f"{_GITHUB}/issues/new?template={_ISSUE_TEMPLATE}"
+    if step is None:
+        return base
+    return f"{base}&title={quote(f'[Step {step}] ')}"
+
+
+def _step_header(step: int, title: str, *, caption: str | None = None) -> None:
+    col_main, col_btn = st.columns([5, 1])
+    with col_main:
+        st.header(title)
+        if caption:
+            st.caption(caption)
+    with col_btn:
+        st.link_button(
+            "Contribute",
+            _issue_url(step),
+            use_container_width=True,
+            help="Suggest a change or report an issue on GitHub (short notes are fine).",
+        )
+
+
 st.set_page_config(layout="wide", page_title="GEOScouter")
+
+with st.sidebar:
+    st.markdown("**Collaborate**")
+    st.caption("Ideas and bug reports welcome — no perfect form required.")
+    st.link_button("Report or suggest", f"{_GITHUB}/issues/new/choose", use_container_width=True)
+    st.link_button("Contributing guide", f"{_GITHUB}/blob/dev/CONTRIBUTING.md", use_container_width=True)
+    st.link_button("Documentation", f"{_GITHUB}/blob/dev/doc/README.md", use_container_width=True)
+
 st.title("GEOScouter – curating datasets from GEO")
 
 st.markdown(
@@ -638,9 +673,13 @@ st.session_state["_rendered_download_keys"] = set()
 dir_base = str(WORK_DIR)
 
 # --- 1. Scraping ---
-st.header("1. Run data scraping")
-st.caption(
-    "Export `gds_result.txt` from [GEO DataSets](https://www.ncbi.nlm.nih.gov/gds/) after your search."
+_step_header(
+    1,
+    "1. Run data scraping",
+    caption=(
+        "Export `gds_result.txt` from [GEO DataSets](https://www.ncbi.nlm.nih.gov/gds/) "
+        "after your search."
+    ),
 )
 
 uploaded_gds = st.file_uploader("Upload gds_result.txt", type=["txt"])
@@ -715,8 +754,11 @@ if not found:
 
 # --- 2. Upstream filters (before plots) ---
 if st.session_state.df_combined is not None:
-    st.header("2. Filter datasets")
-    st.caption("Apply filters here first so visualizations use the narrowed set.")
+    _step_header(
+        2,
+        "2. Filter datasets",
+        caption="Apply filters here first so visualizations use the narrowed set.",
+    )
 
     st.session_state.df_combined = ensure_platform_labels(
         st.session_state.df_combined,
@@ -775,10 +817,13 @@ if st.session_state.df_combined is not None:
 
 # --- 3. Visualize (once, on active set) ---
 if st.session_state.df_active is not None and not st.session_state.df_active.empty:
-    st.header("3. Visualize datasets")
-    st.caption(
-        "Plots reflect the current working set from step 2. "
-        "Click **Similarity network** to define a supervised file-structure signature."
+    _step_header(
+        3,
+        "3. Visualize datasets",
+        caption=(
+            "Plots reflect the current working set from step 2. "
+            "Click **Similarity network** to define a supervised file-structure signature."
+        ),
     )
 
     c0, c1, c2, c3 = st.columns(4)
@@ -818,7 +863,7 @@ if st.session_state.df_active is not None and not st.session_state.df_active.emp
 
 # --- 4. GSE selection ---
 if st.session_state.df_active is not None:
-    st.header("4. Select specific GSEs")
+    _step_header(4, "4. Select specific GSEs")
     with st.container(border=True):
         st.subheader("Build a comparison list")
         st.caption(
@@ -913,7 +958,7 @@ if st.session_state.df_active is not None:
                 offer_download(out_path)
 
 # --- 5. Sample metadata curation ---
-st.header("5. Sample metadata filtering and curation")
+_step_header(5, "5. Sample metadata filtering and curation")
 if st.session_state.df_active is not None:
     _metadata_curation_ui()
 else:
