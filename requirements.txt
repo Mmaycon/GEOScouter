@@ -1,79 +1,17 @@
-# Core numeric / scientific
-numpy
-scipy
-pandas
-numba
-scikit-learn
-statsmodels
-h5py
-anndata
-scanpy
-umap-learn
+# GEOScouter – Streamlit Community Cloud (lean set)
+streamlit>=1.32
+pandas>=2.0
+numpy>=1.24
+requests>=2.28
+beautifulsoup4>=4.12
+lxml>=4.9
+GEOparse>=2.0
+networkx>=3.0
+plotly>=5.18
+matplotlib>=3.7
+seaborn>=0.13
+xlsxwriter>=3.1
+openpyxl>=3.1
 
-# Plotting / visualization
-matplotlib
-seaborn
-plotly
-pillow
-xlsxwriter
-
-# Networking / web
-requests
-urllib3
-charset-normalizer
-idna
-pysocks
-
-# Selenium
-selenium
-
-# Parsing / HTML / XML
-beautifulsoup4
-lxml
-pyyaml
-
-# Graph / clustering
-networkx
-python-igraph
-leidenalg
-
-# GEO / bioinformatics
-GEOparse
-
-# Streamlit & dashboards
-streamlit
-altair
-pydeck
-dash
-dash-bootstrap-components
-flask
-
-# Metadata / utils
-adjusttext
-texttable
-natsort
-joblib
-tqdm
-typing-extensions
-psutil
-jinja2
-traitlets
-
-# NLP (only if you actually use it)
-spacy
-spacy-streamlit
-
-# Dev / notebooks (optional)
-jupyterlab
-ipykernel
-ipython
-notebook
-
-# Misc
-gitpython
-rich
-tenacity
-typer
-wrapt
-openai
-pyarrow
+# Optional locally: supplementary "(custom)" pages via Selenium
+# selenium>=4.15
