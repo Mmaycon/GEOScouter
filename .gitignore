@@ -7,6 +7,5 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
-.cursor/debug*.log
-.cursor/*.log
+.cursor/
 collaboration_plan.md
