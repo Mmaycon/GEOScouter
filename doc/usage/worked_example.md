@@ -7,67 +7,72 @@ This guide provides a reproducible end-to-end workflow so new collaborators can 
 | Parameter | Value |
 |-----------|-------|
 | **Input file** | [`gds_result_skin_xenium.txt`](files/input/gds_result_skin_xenium.txt) |
-| **Step 2 Filters** | Platform (GPL): `GPL33762` (Xenium Homo sapiens) AND `GPL33896` (Xenium Mus musculus) |
-| **Signature Tokens** | `boundaries.parquet.gz`, `feature_matrix.h5`, `cells.parquet.gz`, `morphology.ome.tif.gz`, `transcripts.parquet.gz` |
-| **Similarity Threshold** | `0.80` |
+| **Step 2 - Platform (GPL)** | `GPL33762` (Xenium Homo sapiens) AND `GPL33896` (Xenium Mus musculus) |
+| **Step 3 - Signature Tokens** | `boundaries.parquet.gz`, `feature_matrix.h5`, `cells.parquet.gz`, `morphology.ome.tif.gz`, `transcripts.parquet.gz` |
+| **Step 4 - Similarity Threshold** | `0.80` |
+| **Step 5 - Keyword Search** | `Homo sapiens` |
 
 ---
 
 ## Step 1 — Run data scraping
 
-1. Go to Step 1 and upload the example search result file: `files/input/gds_result_skin_xenium.txt`. (For instructions on generating this file, see [01_gds_input.md](../pipeline/01_gds_input.md)).
+1. Go to Step 1 and upload the example search result file: [`gds_result_skin_xenium.txt`](files/input/gds_result_skin_xenium.txt). (For instructions on generating this file, see [01_gds_input.md](../pipeline/01_gds_input.md)).
 2. Click **Run pipeline**. 
 3. The app will scrape GEO for the 29 GSEs found in the input. Once complete, you can download the raw scrape results (e.g., `geo_webscrap.csv`).
 
 ## Step 2 — Filter datasets
 
-Apply scrape-level filters to ensure we only compare relevant datasets.
+In this section, you can filter the scraped datasets to ensure you only compare the specific types of data you want. The app provides options to filter by "Assay type", "Platform (GPL)", and to set minimum or maximum limits for the number of samples.
 
 1. Under **Platform (GPL)**, select `Xenium In Situ Analyzer: Homo sapiens (GPL33762)` and `Xenium In Situ Analyzer: Mus musculus (GPL33896)`.
-2. Click **Apply scrape-level filters**. 
-3. The active working set is now reduced to **26 series**[cite: 2].
-*(See filter configuration: `img/2_Filter_dataset.png`)*
+2. Leave the other filter options empty or at their default `0` values.
+3. Click **Apply scrape-level filters**. The active working set is now reduced to 26 series.
 
 ## Step 3 — Visualize datasets
 
-Review the visual profiling of the filtered working set.
+In this section, you can generate plots to visually profile the filtered datasets. You can click "Generate all visualizations" to load everything at once, or select individual tabs: "Snapshot bars" (for general sizes and counts), "File vs samples" (to compare sample counts against unique files), and "Similarity network" (to build a signature).
 
-### Dataset Snapshot & Complexity
-* **Snapshot bars:** Displays total size, number of samples, and number of file types per series.
-  * ![Total Size](img/total_size_per_series.png)
-  * ![Samples per Series](img/samples_per_series.png)
-  * ![File Types](img/file_types_per_series.png)
-* **File vs samples:** Compares sample count against unique supplementary files.
-  * ![Complexity](img/unique_supplementary_files_vs_samples_pe.png)
+### Snapshot bars
+* Displays the total size of each GSE:
+  ![Total Size](img/total_size_per_series.png)
+* Displays the number of samples for each GSE:
+  ![Samples per Series](img/samples_per_series.png)
+* Displays the number of file types for each GSE:
+  ![File Types](img/file_types_per_series.png)
 
-### Supervised file-structure signature network
-1. Select **Manual file types** as the signature source[cite: 4].
+### File vs samples
+Compares the sample count against unique supplementary files so we can check if the number of samples is proportional to the number of files.
+![Complexity](img/unique_supplementary_files_vs_samples_pe.png)
+
+### Similarity network (Supervised file-structure signature network)
+1. Select **Manual file types** as the signature source.
 2. Enter the 5 signature tokens listed in the parameters table (one per line).
-3. Click **Build signature from file types** to review the match patterns *(see `img/creating_signature.png`)*.
-4. Click **Apply signature & show network**. Using a minimum edge similarity of `0.20`, the resulting network maps structural similarity across the datasets.
-
-![Signature Network](img/similarity_plot.png)
-*(The Comparison to signature table details which specific rules matched or missed for each GSE: `img/comparison_to_signature.png`)*
+3. Click **Build signature from file types** to review the match patterns with their weights.
+   ![Creating Signature](img/creating_signature.png)
+4. Click **Apply signature & show network**. Slide the minimum similarity for creating an edge to `0.20`.
+   ![Signature Network](img/similarity_plot.png)
+5. Moving down a bit, the **Comparison to signature** table details which specific rules matched or missed for each GSE.
+   ![Comparison to Signature](img/comparison_to_signature.png)
 
 ## Step 4 — Select specific GSEs
 
-Build the final comparison list based on the applied signature.
+Here we select the GSEs we want to keep for the final comparison. You can add datasets in bulk based on a minimal value of signature similarity, or you can manually enter specific GSE IDs if you want to force their inclusion regardless of their score.
 
-1. Set the **Minimum signature similarity** threshold to `0.80`[cite: 6].
-2. Click **Add GSEs matching signature (>= threshold)**. 
-3. No manual GSEs are added for this run. 
-4. The comparison list now contains **8 unique GSEs**[cite: 6] that meet the strict structural criteria.
-5. Click **Export comparison list as filtered table** to download the subset.
-   * **Export:** [`filtered_geo_web_scrap.csv`](files/output/filtered_geo_web_scrap.csv)
+1. Slide the **Minimum signature similarity** threshold to `0.80` and click **Add GSEs matching signature (>= threshold)**. This automatically adds datasets that structurally match your signature rules at 80% or higher.
+2. To add a dataset manually (for example, a dataset that scored below the threshold but is relevant to your analysis), enter the GSE ID in the text field and click **Add manual GSE**. For this example, no manually added GSEs are used.
+3. The comparison list now contains 8 unique GSEs.
+4. Click **Export comparison list as filtered table** to download the subset containing basic information of the filtered GSEs.
+   * **Export:** [`filtered_geo_webscrap.csv`](files/output/filtered_geo_webscrap.csv)
 
 ## Step 5 — Sample metadata filtering and curation
 
-Fetch and review metadata strictly for the 8 selected GSEs.
+Now we perform sample metadata filtering and curation strictly for the selected GSEs.
 
-1. Under **Sample metadata filtering**, we apply no further cell/organ/disease filters for this example.
-2. The curated catalog summarizes the filtered GSEs.
+1. First, we can filter specific information from the metadata (such as organ/tissue, disease, etc.). In this example, we are applying no filtering and moving to the next part.
+2. The curated GSE catalog appears, showing the metadata of each GSE after applying filters.
    * **Export:** [`curated_gse_catalog.csv`](files/output/curated_gse_catalog.csv)
-3. Use the **Keyword search across metadata** to explore specific traits. Searching for `Homo sapiens` yields 6 GSEs and 47 GSMs[cite: 7].
-   *(See keyword results: `img/metadata_key_word.png`)*
-4. Click **Export all fetched metadata to Excel** to generate a workbook containing full sample-level details (one sheet per GSE).
+3. Next, we can view the metadata of each GSM separately. You can also search for keywords to find samples that mention a specific word anywhere in their metadata. The app returns the number of GSEs and GSMs containing that keyword.
+4. Using `"Homo sapiens"` as an example keyword yields 6 GSEs and 47 GSMs.
+   ![Keyword Search](img/metadata_key_word.png)
+5. Finally, click **Export all fetched metadata to Excel**. This creates an Excel workbook where each tab is one GSE, containing the metadata of all its samples.
    * **Export:** [`metadata_GSE.xlsx`](files/output/metadata_GSE.xlsx)
