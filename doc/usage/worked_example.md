@@ -1,6 +1,6 @@
 # Worked Example: End-to-End GEOScouter Run
 
-This guide provides a reproducible end-to-end workflow so new collaborators can test GEOScouter using a fixed input and expected outputs. 
+This guide provides a reproducible end-to-end workflow to test GEOScouter using a fixed input and expected outputs. 
 
 ### Pinned Parameters
 
@@ -42,7 +42,7 @@ In this section, you can generate plots to visually profile the filtered dataset
 
 ### File vs samples
 Compares the sample count against unique supplementary files so we can check if the number of samples is proportional to the number of files.
-![Complexity](img/unique_supplementary_files_vs_samples_pe.png)
+![Files_vs_sample](img/sup_files_per_sample_plot.png)
 
 ### Similarity network (Supervised file-structure signature network)
 1. Select **Manual file types** as the signature source.
@@ -51,7 +51,7 @@ Compares the sample count against unique supplementary files so we can check if 
    ![Creating Signature](img/creating_signature.png)
 4. Click **Apply signature & show network**. Slide the minimum similarity for creating an edge to `0.20`.
    ![Signature Network](img/similarity_plot.png)
-5. Moving down a bit, the **Comparison to signature** table details which specific rules matched or missed for each GSE.
+5. The **Comparison to signature** table details which specific rules matched or missed for each GSE.
    ![Comparison to Signature](img/comparison_to_signature.png)
 
 ## Step 4 — Select specific GSEs
