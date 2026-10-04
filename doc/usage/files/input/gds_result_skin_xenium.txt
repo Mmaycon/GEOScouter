@@ -1,0 +1,722 @@
+
+1. Initial OX40–OX40L Signaling Promotes a Skin-Resident Memory T-Cell Reservoir in Atopic Dermatitis
+(Submitter supplied) Spatial transcriptomic analysis was performed on two lesional skin biopsies obtained from a patient with atopic dermatitis before treatment, including an erythematous lesion and a nodular lesion. Gene expression and spatial cellular organization were analyzed using the 10x Genomics Xenium platform.
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 1 Sample
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE335nnn/GSE335624/
+Series		Accession: GSE335624	ID: 200335624
+
+2. Divergent cytotoxic and immunomodulatory immune programs distinguish morbilliform drug eruption from SDRIFE
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Homo sapiens
+Type:		Other; Expression profiling by high throughput sequencing
+Platforms: GPL33762 GPL24676 5 Samples
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE309nnn/GSE309154/
+Series		Accession: GSE309154	ID: 200309154
+
+3. Divergent cytotoxic and immunomodulatory immune programs distinguish morbilliform drug eruption from SDRIFE
+(Submitter supplied) Cutaneous drug eruptions, including morbilliform drug eruption (MDE) and the less common symmetrical drug-related intertriginous and flexural exanthema (SDRIFE), are characterized by an erythematous rash following medication exposure, often to beta-lactam antibiotics. While MDE is thought to involve tissue-resident memory T cells, the immunopathogenesis of SDRIFE remains poorly understood. We sought to define the inflammatory patterns in SDRIFE compared to MDE, and to elucidate the spatial localization of immune cells within skin. more...
+Organism:	Homo sapiens
+Type:		Expression profiling by high throughput sequencing
+Platform: GPL24676 1 Sample
+FTP download: GEO (H5, RDS, TXT, XLSX) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE309nnn/GSE309152/
+Series		Accession: GSE309152	ID: 200309152
+
+4. Divergent cytotoxic and immunomodulatory immune programs distinguish morbilliform drug eruption from SDRIFE
+(Submitter supplied) Cutaneous drug eruptions, including morbilliform drug eruption (MDE) and the less common symmetrical drug-related intertriginous and flexural exanthema (SDRIFE), are characterized by an erythematous rash following medication exposure, often to beta-lactam antibiotics. While MDE is thought to involve tissue-resident memory T cells, the immunopathogenesis of SDRIFE remains poorly understood. We sought to define the inflammatory patterns in SDRIFE compared to MDE, and to elucidate the spatial localization of immune cells within skin. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 4 Samples
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE308nnn/GSE308697/
+Series		Accession: GSE308697	ID: 200308697
+
+5. Spatial biology reveals macrophage dysfunction in immunosuppressed non-melanoma skin cancer [Xenium Spatial Transcriptomics]
+(Submitter supplied) The rising incidence of non-melanoma skin cancer (NMSC), including basal cell carcinoma (BCC) and cutaneous squamous cell carcinoma (cSCC), particularly among immunosuppressed individuals, underscores the need for a deeper understanding of the tumor microenvironment (TME) to develop effective and safe immunotherapies. This study employed single-cell multi-omic analyses to investigate the spatial distribution and transcriptional profiles of immune cells in NMSC from both immunocompetent and immunosuppressed patients. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 14 Samples
+FTP download: GEO (ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE306nnn/GSE306130/
+Series		Accession: GSE306130	ID: 200306130
+
+6. High resolution mapping of human skin chronic wound tissues biofilm infected using integrated single-cell, spatial and in situ analysis [Xenium]
+(Submitter supplied) Wound-edge skin section of patients with low or high-biofilm infections defined based on the biofilmQ analysis were evaluated using Xenium spatial transcriptomes custom 470-gene expression panel that included built-in human-, mouse-, and bacteria-specific probes, as well as positive and negative controls.
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 2 Samples
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE313nnn/GSE313808/
+Series		Accession: GSE313808	ID: 200313808
+
+7. Xenium spatial transcriptomics identifies mesenchymal fibroblast expansion and conserved fibrotic ECM programs in keloid
+(Submitter supplied) In this study, we applied single-cell-resolution targeted Xenium spatial transcriptomics (Xenium ST) to define keloid-associated cellular and molecular programs within intact tissue architecture, with a focus on fibroblast populations and conserved pro-fibrotic gene programs linked to ECM remodeling across diverse ancestry.
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 2 Samples
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE341nnn/GSE341250/
+Series		Accession: GSE341250	ID: 200341250
+
+8. Ubiquitin-like proteins NEDD8 and SUMO2 control epithelial homeostasis, regeneration, and inflammation
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Homo sapiens; Mus musculus
+Type:		Expression profiling by high throughput sequencing; Other
+Platforms: GPL33896 GPL34284 GPL34290 68 Samples
+FTP download: GEO (H5, PARQUET, TIFF, TXT) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE326nnn/GSE326753/
+Series		Accession: GSE326753	ID: 200326753
+
+9. Ubiquitin-like proteins NEDD8 and SUMO2 control epithelial homeostasis, regeneration, and inflammation [Xenium]
+(Submitter supplied) Stratified epithelial differentiation involves incompletely understood transcriptional and proteomic remodeling. Multi-omic profiling implicated ubiquitin and related networks in differentiation dynamics. Systematic perturbation of ubiquitin-like machinery uncovered opposite functions of NEDD8 and SUMO2. Knockout mice established essential roles for NEDD8 in progenitor maintenance, skin regeneration, and inflammation, whereas SUMO2 was required for differentiation.
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 10 Samples
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE326nnn/GSE326639/
+Series		Accession: GSE326639	ID: 200326639
+
+10. Single-cell transcriptome reveals keratinocyte subclusters that contribute to altered differentiation and inflammatory responses in atopic dermatitis
+(Submitter supplied) Atopic dermatitis (AD) is a common chronic inflammatory skin disease with complex, poorly understood pathogenesis due to its mechanistic heterogeneity. To investigate underlying mechanisms, we performed single-cell RNA sequencing (scRNA-seq) on lesional (LAD) and non-lesional (NAD) skin from 42 AD patients and skin from 23 healthy controls (HC). Keratinocytes (KCs) were the most abundant cell type identified. more...
+Organism:	Homo sapiens
+Type:		Expression profiling by high throughput sequencing
+Platform: GPL24676 116 Samples
+FTP download: GEO (MTX, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE328nnn/GSE328048/
+Series		Accession: GSE328048	ID: 200328048
+
+11. Reprogramming engineered autologous T cells to overcome resistance in Merkel cell carcinoma [Xenium]
+(Submitter supplied) Immune checkpoint inhibitors (CPIs) have transformed Merkel cell carcinoma (MCC) outcomes, but most patients with MCC develop resistance. We identified TCRMCC1, a highly-avid, HLA-A*02:01-restricted T cell receptor (TCR) targeting the Merkel Cell Polyoma Virus (MCPyV) oncoprotein LTAg15–23. Seven patients with CPI-refractory metastatic MCPyV+ MCC received TCRMCC1-transduced cells (TTCR-MCC1)  following lymphodepleting chemotherapy or HLA-enhancing interventions (radiation or IFNg-1b [Actimmune®]), with concurrent CPIs (NCT03747484). more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 6 Samples
+FTP download: GEO (MTX, PARQUET, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE326nnn/GSE326660/
+Series		Accession: GSE326660	ID: 200326660
+
+12. Distinct nociceptor roles in inflammation and itch revealed by subset-specific transcriptomic adaptation
+(Submitter supplied) This study identifies two distinct subsets of sensory neurons that separately regulate itch and inflammation in allergic contact dermatitis. MrgprD⁺ nonpeptidergic neurons adopt a transient regenerative program during inflammation and are essential for itch behavior, while Trpv1⁺ peptidergic neurons limit inflammation by restraining neutrophil infiltration. These findings uncover parallel, nonredundant neuronal circuits that independently control inflammatory and pruritic responses in the skin.
+Organism:	Homo sapiens; Mus musculus
+Type:		Other
+Platform: GPL33762 18 Samples
+FTP download: GEO (PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE315nnn/GSE315295/
+Series		Accession: GSE315295	ID: 200315295
+
+13. Single-Cell Chromatin Accessibility Landscape of Developing Perinatal Mouse Skin: A Multi-Omics Approach to Lineage Specification
+(Submitter supplied) This study presents a time-series scATAC analysis of developing mouse skin. Motif and footprint analyses at the chromatin level, as well as integrated analysis with single-cell and spatial transcriptomic data, enable an in-depth identification of key transcription factors and driver genes involved in fibroblast differentiation and hair follicle formation. This study demonstrates the utility of scATAC analysis combined with multi-omics approaches in providing a comprehensive understanding of skin development. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE286nnn/GSE286129/
+Series		Accession: GSE286129	ID: 200286129
+
+14. Inhibiting LSD1 unlocks retinoid AP-1 programming to activate epithelial immunity and skin tumor suppression
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Mus musculus
+Type:		Other; Genome binding/occupancy profiling by high throughput sequencing; Expression profiling by high throughput sequencing
+Platforms: GPL19057 GPL33896 63 Samples
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE302nnn/GSE302760/
+Series		Accession: GSE302760	ID: 200302760
+
+15. Inhibiting LSD1 unlocks retinoid AP-1 programming to activate epithelial immunity and skin tumor suppression [Xenium CreERT]
+(Submitter supplied) Lysine-specific demethylase 1 (LSD1; KDM1A) orchestrates context-dependent chromatin programs, yet its role in epithelial immunity remains largely unknown. Here, we identify LSD1 as a central brake on retinoid- and AP-1–driven enhancer activation in epidermis and demonstrate that its inhibition induces anti-tumor immunity. While epidermal LSD1 is required during development, acute loss or topical inhibition in adult skin is tolerated and triggers coordinated expression of retinoic acid signaling, lipid remodeling, and chemokine induction pathways. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (TAR, XLSX) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE302nnn/GSE302474/
+Series		Accession: GSE302474	ID: 200302474
+
+16. Inhibiting LSD1 unlocks retinoid AP-1 programming to activate epithelial immunity and skin tumor suppression [Xenium tumor]
+(Submitter supplied) Lysine-specific demethylase 1 (LSD1; KDM1A) orchestrates context-dependent chromatin programs, yet its role in epithelial immunity remains largely unknown. Here, we identify LSD1 as a central brake on retinoid- and AP-1–driven enhancer activation in epidermis and demonstrate that its inhibition induces anti-tumor immunity. While epidermal LSD1 is required during development, acute loss or topical inhibition in adult skin is tolerated and triggers coordinated expression of retinoic acid signaling, lipid remodeling, and chemokine induction pathways. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (TAR, XLSX) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE302nnn/GSE302473/
+Series		Accession: GSE302473	ID: 200302473
+
+17. Inhibiting LSD1 unlocks retinoid AP-1 programming to activate epithelial immunity and skin tumor suppression [Xenium embryo]
+(Submitter supplied) Lysine-specific demethylase 1 (LSD1; KDM1A) orchestrates context-dependent chromatin programs, yet its role in epithelial immunity remains largely unknown. Here, we identify LSD1 as a central brake on retinoid- and AP-1–driven enhancer activation in epidermis and demonstrate that its inhibition induces anti-tumor immunity. While epidermal LSD1 is required during development, acute loss or topical inhibition in adult skin is tolerated and triggers coordinated expression of retinoic acid signaling, lipid remodeling, and chemokine induction pathways. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (TAR, XLSX) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE302nnn/GSE302470/
+Series		Accession: GSE302470	ID: 200302470
+
+18. Spatial analyses of early, untreated SSc skin identify a proinflammatory vascular niche of macrophage-fibroblast signaling
+(Submitter supplied) Uncovering the early interactions and spatial distribution of dermal fibroblasts and immune cells in treatment-naïve diffuse cutaneous systemic sclerosis (dcSSc) patients is critical to understanding the initiating events skin fibrosis. We generated an integrated multiomic dataset of early, treatment naïve dcSSc skin. Skin biopsies were analyzed by single-nuclei multiome sequencing (snRNA-seq and snATAC-seq) and two different paired spatial transcriptomic platforms to comprehensively describe the molecular changes in these individuals. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 10 Samples
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE312nnn/GSE312932/
+Series		Accession: GSE312932	ID: 200312932
+
+19. Single-cell multidimensional profiling of tumor cell heterogeneity in supratentorial ependymomas
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Homo sapiens; Rattus norvegicus
+Type:		Expression profiling by high throughput sequencing; Other
+Platforms: GPL35956 GPL21697 GPL33762 111 Samples
+FTP download: GEO (CSV, MTX, PARQUET, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE260nnn/GSE260452/
+Series		Accession: GSE260452	ID: 200260452
+
+20. Spatial transcriptomics reveals dysfunctional lipid metabolism and abnormal pilosebaceous differentiation in acne vulgaris
+(Submitter supplied) Acne vulgaris is a common skin condition involving complex interactions among lipid-secreting sebaceous glands, keratinocytes, immune cells, and microbiota. While retinoids are effective for treating acne, disease pathogenesis remains poorly understood. In particular, it remains unclear how different subtypes of acne, including inflammatory (pustular) and non-inflammatory (comedonal) lesions, vary in gene expression, signaling, and sebaceous gland involvement. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 24 Samples
+FTP download: GEO (H5, H5AD, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE301nnn/GSE301280/
+Series		Accession: GSE301280	ID: 200301280
+
+21. Xenium In Situ analysis of mouse skin mock-treated or treated with SspA and HDM
+(Submitter supplied) Treatment of mouse skin with the staphylococcal protease SspA and house dust mite extract (HDM) results in dermatitis. Using a 10x Genomics Xenium In Situ platform, we analyzed spatial features in mock-treated skin and inflamed skin treated with epicutaneous SspA and HDM.
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (CSV, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE310nnn/GSE310658/
+Series		Accession: GSE310658	ID: 200310658
+
+
+23. Utx (Kdm6a) promotes differentiation non-catalytically in somatic self-renewing epithelia [Xenium]
+(Submitter supplied) To investigate the role UTX (KDM6A) in stratifying epithelia
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (CSV, H5, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE295nnn/GSE295061/
+Series		Accession: GSE295061	ID: 200295061
+
+24. Induced B Cell Receptor Diversity Predicts PD-1 Blockade Immunotherapy Response
+(Submitter supplied) Immune checkpoint inhibitors such as anti-PD-1 antibodies (aPD1) can be effective in treating advanced cancers. However, many patients do not respond and the mechanisms underlying these differences remain incompletely understood. In this study, we profile a cohort of patients with locally-advanced or metastatic basal cell carcinoma undergoing aPD-1 therapy using single-cell RNA sequencing, high-definition spatial transcriptomics in tumors and draining lymph nodes, and spatial immunoreceptor profiling, with long-term clinical follow-up. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 35 Samples
+FTP download: GEO (CSV, PARQUET, TAR, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE291nnn/GSE291246/
+Series		Accession: GSE291246	ID: 200291246
+
+25. The mechanotransducer Piezo1 coordinates metabolism and inflammation to promote skin regeneration.
+(Submitter supplied) The skin has remarkable ability to grow under constant stretch. We developed a mouse model to imitate human tissue expansion to study the cellular and molecular mechanisms involved in tension-induced skin growth. We examined specific pathway changes within the entire skin at both the spatial and single-cell level. Our analysis has revealed the fractions of basal and suprabasal cells increased after expansion. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 8 Samples
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE289nnn/GSE289263/
+Series		Accession: GSE289263	ID: 200289263
+
+26. Spatial transcriptomics analysis of urticarial rash skin from patients with Schnitzler syndrome
+(Submitter supplied) We conducted a multicenter, open-label, single-arm phase II trial (SCan Study) to evaluate the efficacy and safety of canakinumab in 5 Japanese patients with Schnitzler syndrome (SchS), based on a similar study conducted in Germany. As part of this study, spatial transcriptomics of urticarial rash skin lesions were performed before treatment in 2 cases to identify IL1B-expressing cells. The spatial transcriptomics analysis was conducted using the 10x Genomics Xenium platform.
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 10 Samples
+FTP download: GEO (ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE292nnn/GSE292123/
+Series		Accession: GSE292123	ID: 200292123
+
+27. Somatic mutations distinguish melanocyte subpopulations in human skin
+(Submitter supplied) To better understand the homeostatic mechanisms governing melanocytes, we performed deep phenotyping of single-cell expansions of melanocytes from human skin. In total, we interrogated the mutational landscapes, gene expression profiles, and morphological features of 297 melanocytes from 31 donors. To our surprise, a population of melanocytes with low mutation burden was maintained in sun damaged skin. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 2 Samples
+FTP download: GEO (CSV, JSON, MTX, PARQUET, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE286nnn/GSE286964/
+Series		Accession: GSE286964	ID: 200286964
+
+28. In situ targeted gene expression analysis of healing skin on SD0 post-wounding in Wildtype and Rnasel knock out wounds
+(Submitter supplied) We generated a spatial transcriptomics dataset of wildtype (C57BL/6, n = 3)and Rnasel knockout (Rnaseltm1Slvm, n =3) mice at scab detachment day 0, to investigate specific type of cell populations and their gene expressions.
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 6 Samples
+FTP download: GEO (CSV, H5, JSON, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE278nnn/GSE278431/
+Series		Accession: GSE278431	ID: 200278431
+
+29. Mouse Skin Xenium In Situ Spatial Gene Expression
+(Submitter supplied) To investigate the effecs of commensal papillomavirus immunity on the homeostasis of highly mutated normal skin, spatial transcriptomics (Xenium, 10x Genomics, Pleasanton, CA) was performed on SKH-1 mouse back skin. The mice were treated with mouse papillomavirus (MmuPV1) or virus-like particles (VLP), followed by UV exposure for 25 weeks.
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 2 Samples
+FTP download: GEO (CSV, JSON, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE276nnn/GSE276273/
+Series		Accession: GSE276273	ID: 200276273
+
+30. Reprogramming of epidermal keratinocytes by PITX1 transforms the cutaneous cellular landscape and promotes wound healing [Xenium]
+(Submitter supplied) Skin injuries heal slowly, compared to oral epithelial tissues, and often do not regenerate lost adnexa. Using a murine mouse model expressing the oral epithelial transcription factor PITX1 in the skin, we performed Xenium in situ analysis in healthy and wounded skin and healthy oral mucosa to delineate the cellular and molecular changes underpinning the superior oral wounding response.
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 4 Samples
+FTP download: GEO (CSV, H5, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE280nnn/GSE280069/
+Series		Accession: GSE280069	ID: 200280069
+
+31. Reprogramming of epidermal keratinocytes by PITX1 transforms the cutaneous cellular landscape and promotes wound healing.
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Mus musculus
+Type:		Expression profiling by high throughput sequencing; Other
+Platforms: GPL33896 GPL24247 40 Samples
+FTP download: GEO (CSV, H5, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE280nnn/GSE280088/
+Series		Accession: GSE280088	ID: 200280088
+
+32. Clearance of p21-highly-expressing senescent cells accelerates wound healing
+(Submitter supplied) Targeting senescent cells for therapeutic purposes is gaining momentum across various organ systems. However, concerns about potential off-target effects have been raised. Previous studies have shown that removing senescent cells expressing high levels of p16 (p16high) can hinder processes like wound healing. Here, we identify a distinct senescent cell population during dermal wound healing characterized by high expression level of p21 (p21high) using the p21-Cre mouse model. more...
+Organism:	Mus musculus
+Type:		Other
+Platform: GPL33896 1 Sample
+FTP download: GEO (CSV, H5, JSON, TAR, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE278nnn/GSE278611/
+Series		Accession: GSE278611	ID: 200278611
+
+33. Clearance of p21-highly-expressing senescent cells accelerates cutaneous wound healing
+(Submitter supplied) Targeting senescent cells for therapeutic purposes is gaining momentum across various organ systems. However, concerns about potential off-target effects have been raised. Previous studies have shown that removing senescent cells expressing high levels of p16 (p16high) can hinder processes like wound healing. Here, we identify a distinct senescent cell population during dermal wound healing characterized by high expression level of p21 (p21high) using the p21-Cre mouse model. more...
+Organism:	Mus musculus
+Type:		Expression profiling by high throughput sequencing
+Platform: GPL24247 36 Samples
+FTP download: GEO (TXT) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE278nnn/GSE278527/
+Series		Accession: GSE278527	ID: 200278527
+
+34. The use of ectopic volar fibroblast to modify skin identity IV [Xenium]
+(Submitter supplied) The modification of skin identity, such as the conversion of residual limb/stump (non-volar) skin of amputees to pressure-resistant palmoplantar skin to enhance prosthesis use and minimize skin breakdown, has tremendous clinical potential. Recognizing the capacity of fibroblasts to modify keratinocyte differentiation, we hypothesized that volar fibroblast injections might induce ectopic volar characteristics. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 1 Sample
+FTP download: GEO (CSV, RDS) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE270nnn/GSE270437/
+Series		Accession: GSE270437	ID: 200270437
+
+35. The use of ectopic volar fibroblasts to modify skin identity
+(Submitter supplied) This SuperSeries is composed of the SubSeries listed below.
+Organism:	Homo sapiens
+Type:		Expression profiling by high throughput sequencing; Other
+4 related Platforms 49 Samples
+FTP download: GEO (CSV, MTX, RDS, TSV, TXT) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE231nnn/GSE231998/
+Series		Accession: GSE231998	ID: 200231998
+
+36. In situ targeted gene expression analysis of Marjolin ulcers
+(Submitter supplied) Marjolin's ulcer is a a rare and aggressive cutaneous malignancy that can arise on previously injured skin, established scars, and chronic non-healing wounds. It is most often found in burn scars, but it can also occur in other types of wounds, including venous stasis ulcers, pressure sores, and vaccination sites. The most common histological type of Marjolin’s ulcers is squamous cell carcinoma, however basal cell carcinomas, malignant melanomas, and sarcomas have also been reported. more...
+Organism:	Homo sapiens
+Type:		Other
+Platform: GPL33762 1 Sample
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE251nnn/GSE251937/
+Series		Accession: GSE251937	ID: 200251937
+
+37. Skin_SDRIFE_rep2
+Organism:	Homo sapiens
+Source name:	Skin, punch biopsy
+Platform: GPL33762 Series: GSE308697 GSE309154 
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9251nnn/GSM9251642/
+Sample		Accession: GSM9251642	ID: 309251642
+
+38. Skin_SDRIFE_rep1
+Organism:	Homo sapiens
+Source name:	Skin, punch biopsy
+Platform: GPL33762 Series: GSE308697 GSE309154 
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9251nnn/GSM9251641/
+Sample		Accession: GSM9251641	ID: 309251641
+
+39. Skin_MDE_rep2
+Organism:	Homo sapiens
+Source name:	Skin, punch biopsy
+Platform: GPL33762 Series: GSE308697 GSE309154 
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9251nnn/GSM9251640/
+Sample		Accession: GSM9251640	ID: 309251640
+
+40. Skin_MDE_rep1
+Organism:	Homo sapiens
+Source name:	Skin, punch biopsy
+Platform: GPL33762 Series: GSE308697 GSE309154 
+FTP download: GEO (H5, PARQUET, RDS, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9251nnn/GSM9251639/
+Sample		Accession: GSM9251639	ID: 309251639
+
+41. Xenium In situ Spatial Gene expression WE EDT-073-SV1_high_BFI
+Organism:	Homo sapiens
+Source name:	5µm section High Biofilm-infected chronic wound skin
+Platform: GPL33762 Series: GSE313808 
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9375nnn/GSM9375929/
+Sample		Accession: GSM9375929	ID: 309375929
+
+42. Xenium In situ Spatial Gene expression WE EDT-057-SV1_low_BFI
+Organism:	Homo sapiens
+Source name:	5µm section Low Biofilm-infected chronic wound skin
+Platform: GPL33762 Series: GSE313808 
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9375nnn/GSM9375928/
+Sample		Accession: GSM9375928	ID: 309375928
+
+43. Keloid-WNH and Hispanic
+Organism:	Homo sapiens
+Source name:	One keloid-WNH and Hispanic
+Platform: GPL33762 Series: GSE341250 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9902nnn/GSM9902815/
+Sample		Accession: GSM9902815	ID: 309902815
+
+44. Normal skin and keloid_Asian
+Organism:	Homo sapiens
+Source name:	One normal skin and one keloid from Asian
+Platform: GPL33762 Series: GSE341250 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9902nnn/GSM9902814/
+Sample		Accession: GSM9902814	ID: 309902814
+
+45. Xenium, SSc10, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357164/
+Sample		Accession: GSM9357164	ID: 309357164
+
+46. Xenium, SSc9, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357163/
+Sample		Accession: GSM9357163	ID: 309357163
+
+47. Xenium, SSc8, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357162/
+Sample		Accession: GSM9357162	ID: 309357162
+
+48. Xenium, SSc7, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357161/
+Sample		Accession: GSM9357161	ID: 309357161
+
+49. Xenium, SSc6, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357160/
+Sample		Accession: GSM9357160	ID: 309357160
+
+50. Xenium, SSc5, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357159/
+Sample		Accession: GSM9357159	ID: 309357159
+
+51. Xenium, SSc4, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357158/
+Sample		Accession: GSM9357158	ID: 309357158
+
+52. Xenium, SSc3, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357157/
+Sample		Accession: GSM9357157	ID: 309357157
+
+53. Xenium, SSc2, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357156/
+Sample		Accession: GSM9357156	ID: 309357156
+
+54. Xenium, SSc1, whole skin
+Organism:	Homo sapiens
+Source name:	Affected skin biopsy
+Platform: GPL33762 Series: GSE312932 
+FTP download: GEO (CSV, H5, HTML, JSON, PARQUET, TAR, TIFF, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9357nnn/GSM9357155/
+Sample		Accession: GSM9357155	ID: 309357155
+
+55. 11629-JD-2_D1_Healthy
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079633/
+Sample		Accession: GSM9079633	ID: 309079633
+
+56. 11629-JD-1_C3_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079632/
+Sample		Accession: GSM9079632	ID: 309079632
+
+57. 11629-JD-2_A1_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079631/
+Sample		Accession: GSM9079631	ID: 309079631
+
+58. 11629-JD-2_A2_Pustule
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079630/
+Sample		Accession: GSM9079630	ID: 309079630
+
+59. 11629-JD-1_C1_Comedone
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079629/
+Sample		Accession: GSM9079629	ID: 309079629
+
+60. 11629-JD-2_B2_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079628/
+Sample		Accession: GSM9079628	ID: 309079628
+
+61. 11629-JD-2_D2_Comedone
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079627/
+Sample		Accession: GSM9079627	ID: 309079627
+
+62. 11629-JD-2_C2_Comedone
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079626/
+Sample		Accession: GSM9079626	ID: 309079626
+
+63. 11629-JD-2_C1_Comedone
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079625/
+Sample		Accession: GSM9079625	ID: 309079625
+
+64. 11629-JD-1_B1_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079624/
+Sample		Accession: GSM9079624	ID: 309079624
+
+65. 11629-JD-1_C2_Pustule
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079623/
+Sample		Accession: GSM9079623	ID: 309079623
+
+66. 11629-JD-1_A2_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079622/
+Sample		Accession: GSM9079622	ID: 309079622
+
+67. 11629-JD-1_A1_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079621/
+Sample		Accession: GSM9079621	ID: 309079621
+
+68. 11629-JD-1_B3_Pustule
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079620/
+Sample		Accession: GSM9079620	ID: 309079620
+
+69. 10305_D1_Comedo
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079619/
+Sample		Accession: GSM9079619	ID: 309079619
+
+70. 10305_C1_Comedo
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079618/
+Sample		Accession: GSM9079618	ID: 309079618
+
+71. 10305_B1_Comedo
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079617/
+Sample		Accession: GSM9079617	ID: 309079617
+
+72. 10305_A1_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079616/
+Sample		Accession: GSM9079616	ID: 309079616
+
+73. 11027_D2_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079615/
+Sample		Accession: GSM9079615	ID: 309079615
+
+74. 11027_C2_Healthy
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079614/
+Sample		Accession: GSM9079614	ID: 309079614
+
+75. 11027_C1_Healthy
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079613/
+Sample		Accession: GSM9079613	ID: 309079613
+
+76. 11027_B2_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079612/
+Sample		Accession: GSM9079612	ID: 309079612
+
+77. 11027_B1_Nonlesional
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079611/
+Sample		Accession: GSM9079611	ID: 309079611
+
+78. 11027_A2_Healthy
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE301280 
+FTP download: GEO (H5, PARQUET, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9079nnn/GSM9079610/
+Sample		Accession: GSM9079610	ID: 309079610
+
+79. Skin, SspA/HDM-treated (SH)
+Organism:	Mus musculus
+Source name:	Whole dorsal skin
+Platform: GPL33896 Series: GSE310658 
+FTP download: GEO (CSV, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9305nnn/GSM9305564/
+Sample		Accession: GSM9305564	ID: 309305564
+
+80. Skin, mock-treated (mock)
+Organism:	Mus musculus
+Source name:	Whole dorsal skin
+Platform: GPL33896 Series: GSE310658 
+FTP download: GEO (CSV, TIFF) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM9305nnn/GSM9305563/
+Sample		Accession: GSM9305563	ID: 309305563
+
+81. su001 Post Peri 1  rep 2
+Organism:	Homo sapiens
+Source name:	PD-1 inhibitor treated perilesional skin
+Platform: GPL33762 Series: GSE291246 
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8831nnn/GSM8831632/
+Sample		Accession: GSM8831632	ID: 308831632
+
+82. su001 Post Peri 1  rep 1
+Organism:	Homo sapiens
+Source name:	PD-1 inhibitor treated perilesional skin
+Platform: GPL33762 Series: GSE291246 
+FTP download: GEO (TAR) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8831nnn/GSM8831622/
+Sample		Accession: GSM8831622	ID: 308831622
+
+83. expanded mice at time point PI-7, repeats 1
+Organism:	Mus musculus
+Source name:	expanded mice at time point PI-7, repeats 1
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788022/
+Sample		Accession: GSM8788022	ID: 308788022
+
+84. expanded mice at time point PI-7, repeats 2
+Organism:	Mus musculus
+Source name:	expanded mice at time point PI-7, repeats 2
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788021/
+Sample		Accession: GSM8788021	ID: 308788021
+
+85. expanded mice treated with Yoda1 at time point PI-7, repeats 2
+Organism:	Mus musculus
+Source name:	expanded mice treated with Yoda1 at time point PI-7, repeats 2
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788020/
+Sample		Accession: GSM8788020	ID: 308788020
+
+86. expanded mice treated with Yoda1 at time point PI-7, repeats 1
+Organism:	Mus musculus
+Source name:	expanded mice treated with Yoda1 at time point PI-7, repeats 1
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788019/
+Sample		Accession: GSM8788019	ID: 308788019
+
+87. nonexpanded mice at time point PI-14, repeats 2
+Organism:	Mus musculus
+Source name:	nonexpanded mice at time point PI-14, repeats 2
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788018/
+Sample		Accession: GSM8788018	ID: 308788018
+
+88. nonexpanded mice at time point PI-14, repeats 1
+Organism:	Mus musculus
+Source name:	nonexpanded mice at time point PI-14, repeats 1
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788017/
+Sample		Accession: GSM8788017	ID: 308788017
+
+89. expanded mice at time point PI-14, repeats 2
+Organism:	Mus musculus
+Source name:	expanded mice at time point PI-14, repeats 2
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788016/
+Sample		Accession: GSM8788016	ID: 308788016
+
+90. expanded mice at time point PI-14, repeats 1
+Organism:	Mus musculus
+Source name:	expanded mice at time point PI-14, repeats 1
+Platform: GPL33896 Series: GSE289263 
+FTP download: GEO (CSV, MTX, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8788nnn/GSM8788015/
+Sample		Accession: GSM8788015	ID: 308788015
+
+91. Block_23-51283D1_002
+Organism:	Homo sapiens
+Source name:	Normal human tissue mount
+Platform: GPL33762 Series: GSE286964 
+FTP download: GEO (CSV, JSON, MTX, PARQUET, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8734nnn/GSM8734927/
+Sample		Accession: GSM8734927	ID: 308734927
+
+92. Block_23-51283D1_001
+Organism:	Homo sapiens
+Source name:	Normal human tissue mount
+Platform: GPL33762 Series: GSE286964 
+FTP download: GEO (CSV, JSON, MTX, PARQUET, TIFF, TSV) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8734nnn/GSM8734926/
+Sample		Accession: GSM8734926	ID: 308734926
+
+93. WT3 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546229/
+Sample		Accession: GSM8546229	ID: 308546229
+
+94. WT2 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546228/
+Sample		Accession: GSM8546228	ID: 308546228
+
+95. WT1 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546227/
+Sample		Accession: GSM8546227	ID: 308546227
+
+96. RLKO3 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546226/
+Sample		Accession: GSM8546226	ID: 308546226
+
+97. RLKO2 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546225/
+Sample		Accession: GSM8546225	ID: 308546225
+
+98. RLKO1 Xenium
+Organism:	Mus musculus
+Source name:	SD0 Wounded back skin
+Platform: GPL33896 Series: GSE278431 
+FTP download: GEO (CSV, H5, MTX, PARQUET, TIFF, TSV, TXT, ZIP) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8546nnn/GSM8546224/
+Sample		Accession: GSM8546224	ID: 308546224
+
+99. patient# 136-42 Xenium at 2 month post-injection time point
+Organism:	Homo sapiens
+Source name:	Skin
+Platform: GPL33762 Series: GSE231998 GSE270437 
+FTP download: GEO (CSV, RDS) ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8342nnn/GSM8342992/
+Sample		Accession: GSM8342992	ID: 308342992
