@@ -17,6 +17,28 @@ Contributors work from a **fork**. You do **not** need push access to `Mmaycon/G
 - One topic per PR (one feature, fix, or doc).
 - Delete your feature branch on the fork after merge (optional but tidy).
 
+### dev and main: integration vs release
+
+GEOScouter uses two upstream branches on purpose:
+
+- **`dev`** — integration branch. All community pull requests merge here. When your PR is merged, your work is part of the project.
+- **`main`** — release branch. Maintainers merge **`dev` → `main`** when cutting a release. **`main`** is the stable line and GitHub’s **default branch** for this repository.
+
+**GitHub Contributors / Insights graph** (the contributor list on the repo homepage) counts commits on the **default branch** (`main`), not on `dev` alone. So graph credit for this repo usually appears **after** your commits are included in a **`dev` → `main`** release merge—not the moment your PR lands on `dev`.
+
+Before your first commit, set `git config user.email` to an email **verified on your GitHub account** (or your GitHub noreply address). Commits made with unlinked local emails are not attributed to your `@user` on GitHub.
+
+After your commits reach **`main`**, the **Contributors graph** may take **some time** to refresh (often minutes to hours; longer after large history changes). Individual commit pages may show the correct author before Insights updates.
+
+```mermaid
+flowchart LR
+  fork[Fork_and_feature_branch]
+  prDev[PR_merged_to_dev]
+  release[Maintainer_merges_dev_to_main]
+  graph[GitHub_Contributors_graph_updates]
+  fork --> prDev --> release --> graph
+```
+
 ### First-time setup
 
 1. On GitHub: **Fork** [Mmaycon/GEOScouter](https://github.com/Mmaycon/GEOScouter) to your account.
@@ -30,7 +52,7 @@ git fetch upstream
 git checkout -b dev upstream/dev   # track upstream dev locally
 ```
 
-Before your first commit, set `git config user.email` to an email **verified on your GitHub account** (or your GitHub noreply address). Contributor credit on the repo homepage appears after your commits are on **`main`** (when **`dev`** is released), not from the PR merge alone.
+3. See [dev and main: integration vs release](#dev-and-main-integration-vs-release) for git author email and how GitHub contributor credit works.
 
 ### Every contribution
 
@@ -90,7 +112,7 @@ On every pull request to **`dev`**, GitHub Actions runs the **`tests`** workflow
 
 1. Wait for the **tests** check to finish (green is good).
 2. A maintainer reviews the diff.
-3. If merged, your changes land on **`dev`**.
+3. If merged, your changes land on **`dev`**. They reach **`main`** and the public Contributors graph when a maintainer merges **`dev` → `main`** (see [dev and main: integration vs release](#dev-and-main-integration-vs-release)).
 
 Small fixes do not need a linked issue; larger work benefits from discussing first.
 
