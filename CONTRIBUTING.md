@@ -30,6 +30,8 @@ git fetch upstream
 git checkout -b dev upstream/dev   # track upstream dev locally
 ```
 
+Before your first commit, set `git config user.email` to an email **verified on your GitHub account** (or your GitHub noreply address). Contributor credit on the repo homepage appears after your commits are on **`main`** (when **`dev`** is released), not from the PR merge alone.
+
 ### Every contribution
 
 ```bash
