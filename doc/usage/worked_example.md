@@ -74,5 +74,5 @@ Now we perform sample metadata filtering and curation strictly for the selected 
 3. Next, we can view the metadata of each GSM separately. You can also search for keywords to find samples that mention a specific word anywhere in their metadata. The app returns the number of GSEs and GSMs containing that keyword.
 4. Using `"Homo sapiens"` as an example keyword yields 6 GSEs and 47 GSMs.
    ![Keyword Search](img/metadata_key_word.png)
-5. Finally, click **Export all fetched metadata to Excel**. This creates an Excel workbook where each tab is one GSE, containing the metadata of all its samples.
+5. Click **Export all fetched metadata to Excel**. This creates an Excel workbook where each tab is one GSE, containing the metadata of all its samples.
    * **Export:** [`metadata_GSE.xlsx`](files/output/metadata_GSE.xlsx)
